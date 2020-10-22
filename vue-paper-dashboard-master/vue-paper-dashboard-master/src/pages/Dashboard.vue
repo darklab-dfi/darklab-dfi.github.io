@@ -1,4 +1,4 @@
-<template>
+<template><!--I changed here-->
   <div>
 
     <!--Stats cards-->
