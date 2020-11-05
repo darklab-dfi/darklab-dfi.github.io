@@ -19,11 +19,13 @@ import router from "./router/index";
 
 import PaperDashboard from "./plugins/paperDashboard";
 import "vue-notifyjs/themes/default.css";
+import vuetify from './plugins/vuetify';
 
 Vue.use(PaperDashboard);
 
 /* eslint-disable no-new */
 new Vue({
-  router,
-  render: h => h(App)
+ router,
+ vuetify,
+ render: h => h(App)
 }).$mount("#app");
