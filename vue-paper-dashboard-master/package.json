@@ -16,6 +16,8 @@
     "bootstrap": "^4.0.0",
     "chartist": "^0.11.0",
     "es6-promise": "^4.2.4",
+    "express": "^4.17.1",
+    "nodemon": "^2.0.6",
     "vue": "^2.6.10",
     "vue-clickaway": "^2.1.0",
     "vue-notifyjs": "^0.3.0",
@@ -25,7 +27,7 @@
   "devDependencies": {
     "@vue/cli-plugin-babel": "^3.10.0",
     "@vue/cli-plugin-eslint": "^3.10.0",
-    "@vue/cli-service": "^3.10.0",
+    "@vue/cli-service": "^4.5.8",
     "@vue/eslint-config-prettier": "^5.0.0",
     "node-sass": "^4.8.3",
     "sass": "^1.19.0",
