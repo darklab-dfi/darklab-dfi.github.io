@@ -14,10 +14,17 @@
     "bootstrap": "^4.0.0",
     "chartist": "^0.11.0",
     "es6-promise": "^4.2.4",
+    "express": "^4.17.1",
+    "node-fetch": "^2.6.1",
+    "papaparse": "^5.3.0",
+    "request-promise-native": "^1.0.9",
+    "shodan-client": "^3.2.0",
+    "urlscan-api": "0.0.4",
     "vue": "^2.6.10",
     "vue-clickaway": "^2.1.0",
     "vue-notifyjs": "^0.3.0",
-    "vue-router": "^3.0.1"
+    "vue-router": "^3.0.1",
+    "xhr2": "^0.2.0"
   },
   "devDependencies": {
     "@vue/cli-plugin-babel": "^3.10.0",
