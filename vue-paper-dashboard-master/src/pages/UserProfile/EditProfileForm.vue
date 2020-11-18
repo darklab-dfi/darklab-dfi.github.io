@@ -1,3 +1,20 @@
+<!--Jonathan added:Start-->
+<!--cd Desktop/ISOM4400/pwc-fyp/vue-paper-dashboard-master-->
+<!--add extension in chrome Moesif Origin & CORS Changer-->
+<script>
+const { request } = require('express');
+var express = require('express');
+var router = express.Router();
+const fetch = require('node-fetch');
+const Papa = require('papaparse');
+const shodanClient = require('shodan-client');
+const urlscan = require('urlscan-api');
+const zoomRequest = require('request-promise-native');
+const e = require('express');
+global.XMLHttpRequest = require("xhr2");
+</script>
+<!--Jonathan added:End-->
+
 <template>
   <card class="card" title="Edit Profile">
     <div>
@@ -99,6 +116,14 @@
           </p-button>
         </div>
         <div class="clearfix"></div>
+        <div class="text-center"><!--Jonathan added:Start-->
+          <p-button type="info"
+                    round
+                    @click.native.prevent="securityTrailFunc">
+            Get Security Trail Data
+          </p-button>
+        </div>
+        <div class="clearfix"></div><!--Jonathan added:End-->
       </form>
     </div>
   </card>
@@ -123,7 +148,20 @@ export default {
   methods: {
     updateProfile() {
       alert("Your data: " + JSON.stringify(this.user));
+    },
+    //Jonathan added:Start
+    async securityTrailFunc() {
+      var searchDomains = "pwc.com";
+      var url ='https://cors-anywhere.herokuapp.com/https://api.securitytrails.com/v1/history/' + searchDomains + '/dns/a';
+      var headers = {
+        "accept": "application/json",
+        "apikey": "DQBlP4wW3HFKjAA12KHc6NtiYATfTVZP",
+      };
+      const request_securityTrail = await fetch(url, { method: 'GET', headers: headers});
+      const data = await request_securityTrail.json();
+      alert(JSON.stringify(data));
     }
+    //Jonathan added:End
   }
 };
 </script>
