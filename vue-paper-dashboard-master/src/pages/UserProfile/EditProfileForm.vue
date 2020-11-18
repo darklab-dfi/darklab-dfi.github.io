@@ -123,6 +123,14 @@ global.XMLHttpRequest = require("xhr2");
             Get Security Trail Data
           </p-button>
         </div>
+        <div class="clearfix"></div>
+        <div class="text-center">
+          <p-button type="info"
+                    round
+                    @click.native.prevent="hunterioFunc">
+            Get Hunter io Data
+          </p-button>
+        </div>
         <div class="clearfix"></div><!--Jonathan added:End-->
       </form>
     </div>
@@ -151,14 +159,28 @@ export default {
     },
     //Jonathan added:Start
     async securityTrailFunc() {
+      var prefixURL = 'https://cors-anywhere.herokuapp.com/'
       var searchDomains = "pwc.com";
-      var url ='https://cors-anywhere.herokuapp.com/https://api.securitytrails.com/v1/history/' + searchDomains + '/dns/a';
+      var url =prefixURL + 'https://api.securitytrails.com/v1/history/' + searchDomains + '/dns/a';
       var headers = {
         "accept": "application/json",
         "apikey": "DQBlP4wW3HFKjAA12KHc6NtiYATfTVZP",
       };
       const request_securityTrail = await fetch(url, { method: 'GET', headers: headers});
       const data = await request_securityTrail.json();
+      alert(JSON.stringify(data));
+    },
+    async hunterioFunc(){
+      var prefixURL = 'https://cors-anywhere.herokuapp.com/'
+      var searchDomains = "pwc.com";
+      var hunterAPIkey ="22850ea6e4f33099e48217886b978b65c82db488";
+      var url = prefixURL + 'https://api.hunter.io/v2/domain-search?domain=' + searchDomains + '&api_key=' + hunterAPIkey + '&limit=10';
+      var headers = {
+        "accept": "application/json",
+        "apikey": hunterAPIkey
+      };
+      const request_hunterio = await fetch(url, { method: 'GET', headers: headers}); //must include await
+      const data = await request_hunterio.json(); //must include await so that will wait for data return
       alert(JSON.stringify(data));
     }
     //Jonathan added:End
