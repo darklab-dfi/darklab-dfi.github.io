@@ -9,6 +9,7 @@
         <sidebar-link to="/icons" name="Icons" icon="ti-pencil-alt2"/>
         <sidebar-link to="/maps" name="Map" icon="ti-map"/>
         <sidebar-link to="/notifications" name="Notifications" icon="ti-bell"/>
+        <sidebar-link to="/callapi" name="callapi" icon="ti-music-alt"/><!--Jonathan: Add this-->
       </template>
       <mobile-menu>
         <li class="nav-item">

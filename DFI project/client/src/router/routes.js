@@ -10,6 +10,7 @@ import Icons from "@/pages/Icons.vue";
 import Maps from "@/pages/Maps.vue";
 import Typography from "@/pages/Typography.vue";
 import TableList from "@/pages/TableList.vue";
+import CallAPI from "@/pages/CallAPI.vue";//Jonathan: add this
 
 const routes = [
   {
@@ -51,7 +52,12 @@ const routes = [
         path: "table-list",
         name: "table-list",
         component: TableList
-      }
+      },
+      {//Jonathan: add from here
+        path: "callapi",
+        name: "callapi",
+        component: CallAPI
+      }//to here
     ]
   },
   { path: "*", component: NotFound }
