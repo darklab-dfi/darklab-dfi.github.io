@@ -1,51 +1,71 @@
 <template>
     <div class="row">
-      <div class="col-12">
-        <card :title="table1.title" :subTitle="table1.subTitle">
-          <div slot="raw-content" class="table-responsive">
-            <paper-table :data="table1.data" :columns="table1.columns">
 
-            </paper-table>
-          </div>
-        </card>
-      </div>
+      <table id="outS11">
+        <thead>
+          <tr>
+            <th>Domain</th>
+            <th>IP</th>
+            <th>ISP</th>
+            <th>Record Type</th>
+            <th>Host name</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="row in outS11" :key="row.IP">
+            <td>{{row["Domain"]}}</td>
+            <td>{{row["IP"]}}</td>
+            <td>{{row["ISP"]}}</td>
+            <td>{{row["Record Type"]}}</td>
+            <td>{{row["hostname"]}}</td>
+          </tr>
+        </tbody>
+      </table>
 
-      <div class="col-12">
-        <card class="card-plain">
-          <div class="table-full-width table-responsive">
-            <paper-table type="hover" :title="table2.title" :sub-title="table2.subTitle" :data="table2.data"
-                         :columns="table2.columns">
-
-            </paper-table>
-          </div>
-        </card>
-      </div>
-      <div class="text-center">
-        <input 
-          type="email" 
-          name="email" 
-          v-model="email"
-          placeholder="email"/>
+      <div class="text-left">
         <br>
         <br>
         <input 
-          type="password" 
-          name="password" 
-          v-model="password"
-          placeholder="password"/>
+          type="entityName" 
+          name="entityName" 
+          v-model="entityName"
+          placeholder="Entity Name"/>
+        <br>
+        <br>
+        <input 
+          type="searchDomain" 
+          name="searchDomain" 
+          v-model="searchDomain"
+          placeholder="Search domain"/>
+        <br>
+        <br>
+        <input 
+          type="keyword" 
+          name="keyword" 
+          v-model="keyword"
+          placeholder="Keyword"/>
         <br>
         <br>
         <button
           type="info"
           round
-          @click="register">
-          Register
+          @click="getOutS11">
+          Search
         </button>
+        <br>
+        <br>
+        <p class="text-danger">
+            {{loadingStatus}}
+        </p>
+        <p class="text-primary">
+            {{outS11}}
+        </p>
       </div>
     </div>
 </template>
 <script>
 import AuthenticationService from '@/services/AuthenticationService'
+import getOutput from '@/services/getOutput'
 import { PaperTable } from "@/components";
 const tableColumns = ["Id", "Name", "Salary", "Country", "City"];
 const tableData = [
@@ -85,13 +105,17 @@ const tableData = [
     city: "Feldkirchen in Kärnten"
   }
 ];
-
 export default {
   components: {
     PaperTable
   },
   data() {
     return {
+      outS11: [
+        {"Domain": 123, "IP":'ip', "ISP":'123', "Record_Type":'123', "hostname":'123'},
+        {"Domain": 123, "IP":'ip', "ISP":'123', "Record_Type":'123', "hostname":'123'}
+      ],
+      outS11Columns: ['Domain', 'IP', 'ISP', 'Record Type', 'hostname'],
       table1: {
         title: "Stripped Table",
         subTitle: "Here is a subtitle for this table",
@@ -104,8 +128,18 @@ export default {
         columns: [...tableColumns],
         data: [...tableData]
       },
+      tableOutS11:{
+        title: "OutS11 table data",
+        subTitle:"Subdomains of the domain ",
+        columns: this.outS11Columns,
+        data: this.outS11
+      },
       email: '',
-      password: ''
+      password: '',
+      entityName: '',
+      searchDomain: '',
+      keyword:'',
+      loadingStatus: 'Please click search to start searching DFI data'
     };
   },
   methods:{
@@ -116,33 +150,46 @@ export default {
       })
       console.log(response.data)
     },
-    async securityTrailFunc() {
-      var prefixURL = 'https://cors-anywhere.herokuapp.com/'
-      var searchDomains = "pwc.com";
-      var url =prefixURL + 'https://api.securitytrails.com/v1/history/' + searchDomains + '/dns/a';
-      var headers = {
-        "accept": "application/json",
-        "apikey": "DQBlP4wW3HFKjAA12KHc6NtiYATfTVZP",
-      };
-      const request_securityTrail = await fetch(url, { method: 'GET', headers: headers});
-      const data = await request_securityTrail.json();
-      alert(JSON.stringify(data));
-    },
-    async hunterioFunc(){
-      var prefixURL = 'https://cors-anywhere.herokuapp.com/'
-      var searchDomains = "pwc.com";
-      var hunterAPIkey ="22850ea6e4f33099e48217886b978b65c82db488";
-      var url = prefixURL + 'https://api.hunter.io/v2/domain-search?domain=' + searchDomains + '&api_key=' + hunterAPIkey + '&limit=10';
-      var headers = {
-        "accept": "application/json",
-        "apikey": hunterAPIkey
-      };
-      const request_hunterio = await fetch(url, { method: 'GET', headers: headers}); //must include await
-      const data = await request_hunterio.json(); //must include await so that will wait for data return
-      alert(JSON.stringify(data));
+    async getOutS11(){
+      this.loadingStatus = "Working on output 11..."
+      const response = await getOutput.getOutS11({
+        entityName: this.entityName,
+        searchDomain: this.searchDomain,
+        keyword: this.keyword
+      })
+      this.outS11 = response.data['outS11']
+      this.outS11Columns = Object.keys(outS11[0])
     }
   }
 };
 </script>
 <style>
+table {
+  font-family: 'Open Sans', sans-serif;
+  width: 750px;
+  border-collapse: collapse;
+  border: 3px solid #44475C;
+  margin: 10px 10px 0 10px;
+}
+
+table th {
+  text-transform: uppercase;
+  text-align: left;
+  background: #44475C;
+  color: #FFF;
+  padding: 8px;
+  min-width: 30px;
+}
+
+table td {
+  text-align: left;
+  padding: 8px;
+  border-right: 2px solid #7D82A8;
+}
+table td:last-child {
+  border-right: none;
+}
+table tbody tr:nth-child(2n) td {
+  background: #D4D8F9;
+}
 </style>
