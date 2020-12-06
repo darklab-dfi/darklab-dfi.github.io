@@ -1,30 +1,6 @@
 <template>
     <div class="row">
-
-      <table id="outS11">
-        <thead>
-          <tr>
-            <th>Domain</th>
-            <th>IP</th>
-            <th>ISP</th>
-            <th>Record Type</th>
-            <th>Host name</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="row in outS11" :key="row.IP">
-            <td>{{row["Domain"]}}</td>
-            <td>{{row["IP"]}}</td>
-            <td>{{row["ISP"]}}</td>
-            <td>{{row["Record Type"]}}</td>
-            <td>{{row["hostname"]}}</td>
-          </tr>
-        </tbody>
-      </table>
-
       <div class="text-left">
-        <br>
-        <br>
         <input 
           type="entityName" 
           name="entityName" 
@@ -57,85 +33,35 @@
         <p class="text-danger">
             {{loadingStatus}}
         </p>
-        <p class="text-primary">
-            {{outS11}}
-        </p>
+
+        <table id="outS11" class='text_left'>
+        <thead>
+          <tr>
+            <th v-for="key_ in Object.keys(outS11[0])" :key="key_">{{key_}}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="row in outS11" :key="row.IP">
+            <td>{{row["Domain"]}}</td>
+            <td>{{row["IP"]}}</td>
+            <td>{{row["ISP"]}}</td>
+            <td>{{row["Record Type"]}}</td>
+            <td>{{row["hostname"]}}</td>
+          </tr>
+        </tbody>
+        </table>
+      
       </div>
-    </div>
+    </div> 
 </template>
 <script>
-import AuthenticationService from '@/services/AuthenticationService'
 import getOutput from '@/services/getOutput'
-import { PaperTable } from "@/components";
-const tableColumns = ["Id", "Name", "Salary", "Country", "City"];
-const tableData = [
-  {
-    id: 1,
-    name: "Dakota Rice",
-    salary: "$36.738",
-    country: "Niger",
-    city: "Oud-Turnhout"
-  },
-  {
-    id: 2,
-    name: "Minerva Hooper",
-    salary: "$23,789",
-    country: "Curaçao",
-    city: "Sinaai-Waas"
-  },
-  {
-    id: 3,
-    name: "Sage Rodriguez",
-    salary: "$56,142",
-    country: "Netherlands",
-    city: "Baileux"
-  },
-  {
-    id: 4,
-    name: "Philip Chaney",
-    salary: "$38,735",
-    country: "Korea, South",
-    city: "Overland Park"
-  },
-  {
-    id: 5,
-    name: "Doris Greene",
-    salary: "$63,542",
-    country: "Malawi",
-    city: "Feldkirchen in Kärnten"
-  }
-];
 export default {
-  components: {
-    PaperTable
-  },
   data() {
     return {
       outS11: [
-        {"Domain": 123, "IP":'ip', "ISP":'123', "Record_Type":'123', "hostname":'123'},
-        {"Domain": 123, "IP":'ip', "ISP":'123', "Record_Type":'123', "hostname":'123'}
+        {"Domain": 'domain', "IP":'ip', "ISP":'isp', "Record Type":'record type', "hostname":'hostname'}
       ],
-      outS11Columns: ['Domain', 'IP', 'ISP', 'Record Type', 'hostname'],
-      table1: {
-        title: "Stripped Table",
-        subTitle: "Here is a subtitle for this table",
-        columns: [...tableColumns],
-        data: [...tableData]
-      },
-      table2: {
-        title: "Table on Plain Background",
-        subTitle: "Here is a subtitle for this table",
-        columns: [...tableColumns],
-        data: [...tableData]
-      },
-      tableOutS11:{
-        title: "OutS11 table data",
-        subTitle:"Subdomains of the domain ",
-        columns: this.outS11Columns,
-        data: this.outS11
-      },
-      email: '',
-      password: '',
       entityName: '',
       searchDomain: '',
       keyword:'',
@@ -143,13 +69,6 @@ export default {
     };
   },
   methods:{
-    async register(){
-      const response = await AuthenticationService.register({
-        email: this.email,
-        password: this.password
-      })
-      console.log(response.data)
-    },
     async getOutS11(){
       this.loadingStatus = "Working on output 11..."
       const response = await getOutput.getOutS11({
