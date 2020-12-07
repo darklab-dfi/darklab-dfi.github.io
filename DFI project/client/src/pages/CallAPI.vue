@@ -25,32 +25,72 @@
         <button
           type="info"
           round
-          @click="getOutS11">
+          @click="getOutput">
           Search
         </button>
         <br>
         <br>
         <p class="text-danger">
             {{loadingStatus}}
-        </p>
+        </p>  
 
-        <table id="outS11" class='text_left'>
-        <thead>
-          <tr>
-            <th v-for="key_ in Object.keys(outS11[0])" :key="key_">{{key_}}</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="row in outS11" :key="row.IP">
-            <td>{{row["Domain"]}}</td>
-            <td>{{row["IP"]}}</td>
-            <td>{{row["ISP"]}}</td>
-            <td>{{row["Record Type"]}}</td>
-            <td>{{row["hostname"]}}</td>
-          </tr>
-        </tbody>
-        </table>
-      
+        <p class="text-info">
+            OutS11
+        </p>
+        <div class="scroll">
+          <table id="outS11" class='text_left'>
+          <thead>
+            <tr>
+              <th v-for="(key_, index) in Object.keys(outS11[0])" :key="index">{{key_}}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(row, index) in outS11" :key="index">
+              <td v-for="(key_, index) in Object.keys(outS11[0])" :key="index">{{row[key_]}}</td>
+            </tr>
+          </tbody>
+          </table>
+        </div>
+
+        <p class="text-info">
+                OutS12
+          </p>
+        <div class="scroll">
+          <table id="outS12" class='text_left'>
+          <thead>
+            <tr>
+              <th v-for="(key_, index) in Object.keys(outS12[0])" :key="index">{{key_}}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(row, index) in outS12" :key="index">
+              <td v-for="(key_, index) in Object.keys(outS12[0])" :key="index">{{row[key_]}}</td>
+            </tr>
+          </tbody>
+          </table>
+        </div>
+
+        <p class="text-info">
+                OutS13
+          </p>
+        <div class="scroll">
+          <table id="outS13" class='text_left'>
+          <thead>
+            <tr>
+              <th v-for="(key_, index) in Object.keys(outS13[0])" :key="index">{{key_}}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(row, index) in outS13" :key="index">
+              <td v-for="(key_, index) in Object.keys(outS13[0])" :key="index">{{row[key_]}}</td>
+            </tr>
+          </tbody>
+          </table>
+        </div>
+
+        <p class="text-info">
+          {{tempStr}}
+        </p>   
       </div>
     </div> 
 </template>
@@ -60,34 +100,50 @@ export default {
   data() {
     return {
       outS11: [
-        {"Domain": 'domain', "IP":'ip', "ISP":'isp', "Record Type":'record type', "hostname":'hostname'}
+        {"col 1": '[row 1 col 1]', "col 2":'[row 1 col 2]', "col 3":'[row 1 col 3]', "col 4":'[row 1 col 4]'}
+      ],
+      outS12: [
+        {"col 1": '[row 1 col 1]', "col 2":'[row 1 col 2]', "col 3":'[row 1 col 3]', "col 4":'[row 1 col 4]'}
+      ],
+      outS13: [
+        {"col 1": '[row 1 col 1]', "col 2":'[row 1 col 2]', "col 3":'[row 1 col 3]', "col 4":'[row 1 col 4]'}
       ],
       entityName: '',
       searchDomain: '',
       keyword:'',
-      loadingStatus: 'Please click search to start searching DFI data'
+      loadingStatus: 'Please click search to start searching DFI data',
+      tempStr:''
     };
   },
   methods:{
-    async getOutS11(){
-      this.loadingStatus = "Working on output 11..."
-      const response = await getOutput.getOutS11({
+    async getOutput(){
+      this.loadingStatus = "Calling the APIs"
+      const response = await getOutput.getOutput({
         entityName: this.entityName,
         searchDomain: this.searchDomain,
         keyword: this.keyword
       })
       this.outS11 = response.data['outS11']
-      this.outS11Columns = Object.keys(outS11[0])
+      this.outS12 = response.data['outS12']
+      this.outS13 = response.data['outS13']
+      this.tempStr = response.data['temp']
     }
   }
 };
 </script>
 <style>
+.scroll{
+  width:3000px;
+  max-height:500px;
+  overflow: scroll;
+  margin-bottom: 20px;
+}
 table {
   font-family: 'Open Sans', sans-serif;
   width: 750px;
   border-collapse: collapse;
   border: 3px solid #44475C;
+  overflow: scroll;
   margin: 10px 10px 0 10px;
 }
 

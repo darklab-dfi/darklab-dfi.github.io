@@ -43,32 +43,12 @@ app.post('/register', (req, res)=> {
     })
 })
 
-app.get('/test', async (req, res)=> {
-    var i = 0;
-    while(true){
-        await delay(1000);
-        console.log(i)
-        i++
-    }
-    res.send({
-        message: `Hello ${req.body.email}! Your user was registered!`
-    })
-})
-
-app.post('/outS11', async (req, res)=> {
+app.post('/output', async (req, res)=> {
     console.log("########Program Started########")
-    const outS11 = await getOutS11(req.body.searchDomain);
-    res.send({
-        outS11:outS11
-    })
-})
+    const searchDomain = req.body.searchDomain;
+    const entityName = req.body.entityName;
+    const keyword = req.body.keyword;
 
-app.listen(process.env.PORT || 8081)
-
-const delay = ms => new Promise(res => setTimeout(res, ms));
-
-/**Functions for outS11 */
-async function getOutS11(searchDomain){
     /*var subdomainData = await getSubdomains(searchDomain);
     var nsRecord = await getNSRecord(searchDomain);
     var mxRecord = await getMXRecord(searchDomain);
@@ -78,10 +58,32 @@ async function getOutS11(searchDomain){
     subdomainData = outS11groupData(subdomainData, NS_MX_A_recordData);
     subdomainData = outS11RemoveNoInfo(subdomainData);*/
     var subdomainData = getTempOutS11();
-    const outS11_ = tokenizeOutput(subdomainData);
+    var t_subdomainData = tokenizeOutput(subdomainData);
+    const outS11 = JSON.parse(JSON.stringify(t_subdomainData));
 
-    return outS11_;
-}
+    var dataLogin = getOutS12(t_subdomainData);
+    const outS12 = JSON.parse(JSON.stringify(dataLogin));
+
+    const pendingToScan = Array.from(new Set(subdomainData['IP']));
+    const shodanData = await shodanFunc(pendingToScan);
+    const t_shodanData = tokenizeOutput(shodanData);
+    const outS13 = JSON.parse(JSON.stringify(t_shodanData));
+    //var resultShodanData = getResultShodanData(shodanData);
+    //var shodanData = getTempOutS13Data();
+
+    res.send({
+        outS11: outS11,
+        outS12: outS12,
+        outS13: outS13,
+        temp: JSON.stringify(outS13)
+    })
+})
+
+app.listen(process.env.PORT || 8081)
+
+const delay = ms => new Promise(res => setTimeout(res, ms));
+
+/**Functions for outS11 */
 async function getSubdomains(searchDomain){
     console.log("OutS11: Getting subdomain data (1/2)");
     var url ='https://api.securitytrails.com/v1/domain/' + searchDomain + '/subdomains';
@@ -102,7 +104,7 @@ async function getSubdomains(searchDomain){
   
     var data_v2 = {"Domain": data["subdomains"], "IP": Array(rowCount).fill("No Info"), 
       "ISP": Array(rowCount).fill("No Info"),
-      "Record Type": Array(rowCount).fill("host"),
+      "RecordType": Array(rowCount).fill("host"),
       "hostname": Array(rowCount).fill("No Info")
     };
     for (i = 0; i < rowCount; i++) {//to be changed back
@@ -164,7 +166,7 @@ async function getSubdomains(searchDomain){
   async function getNSRecord(searchDomains){
     console.log("OutS11: getting data of subdomain (2/2)");
     console.log("OutS11: getting NS records");
-    var nsRecord = {"Domain":[], "IP":[], "ISP":[], 'Record Type':[], "hostname":[]};
+    var nsRecord = {"Domain":[], "IP":[], "ISP":[], 'RecordType':[], "hostname":[]};
     const nsRecordURL = "https://www.whatsmydns.net/dns-lookup/ns-records?query=" + searchDomains + "&server=google";
     const nsRecordHTML = await getHTMLText(nsRecordURL);
     const startIndex = nsRecordHTML.indexOf(';ANSWER') + 17;
@@ -191,14 +193,14 @@ async function getSubdomains(searchDomain){
     nsRecord["Domain"] = dataArrayV2;
     nsRecord["IP"] = Array(dataArrayV2.length).fill("No Info");
     nsRecord["ISP"] = Array(dataArrayV2.length).fill("No Info");
-    nsRecord["Record Type"] = Array(dataArrayV2.length).fill("dns");
+    nsRecord["RecordType"] = Array(dataArrayV2.length).fill("dns");
     nsRecord["hostname"] = Array(dataArrayV2.length).fill("No Info");
   
     return nsRecord;
   }
   async function getMXRecord(searchDomains){
     console.log("OutS11: getting MX records");
-    var mxRecord = {"Domain":[], "IP":[], "ISP":[], 'Record Type':[], "hostname":[]};
+    var mxRecord = {"Domain":[], "IP":[], "ISP":[], 'RecordType':[], "hostname":[]};
     const nsRecordURL = "https://www.whatsmydns.net/dns-lookup/mx-records?query=" + searchDomains + "&server=google";
     const nsRecordHTML = await getHTMLText(nsRecordURL);
     const startIndex = nsRecordHTML.indexOf(';ANSWER') + 17;
@@ -225,14 +227,14 @@ async function getSubdomains(searchDomain){
     mxRecord["Domain"] = dataArrayV2;
     mxRecord["IP"] = Array(dataArrayV2.length).fill("No Info");
     mxRecord["ISP"] = Array(dataArrayV2.length).fill("No Info");
-    mxRecord["Record Type"] = Array(dataArrayV2.length).fill("mx");
+    mxRecord["RecordType"] = Array(dataArrayV2.length).fill("mx");
     mxRecord["hostname"] = Array(dataArrayV2.length).fill("No Info");
   
     return mxRecord;
   }
   async function getARecord(searchDomains){
     console.log("OutS11: getting A records");
-    var aRecord = {"Domain":[], "IP":[], "ISP":[], 'Record Type':[], "hostname":[]};
+    var aRecord = {"Domain":[], "IP":[], "ISP":[], 'RecordType':[], "hostname":[]};
     const nsRecordURL = "https://www.whatsmydns.net/dns-lookup/a-records?query=" + searchDomains + "&server=google";
     const nsRecordHTML = await getHTMLText(nsRecordURL);
     const startIndex = nsRecordHTML.indexOf(';ANSWER') + 17;
@@ -256,28 +258,28 @@ async function getSubdomains(searchDomain){
     aRecord["Domain"] = dataArrayV2;
     aRecord["IP"] = Array(dataArrayV2.length).fill("No Info");
     aRecord["ISP"] = Array(dataArrayV2.length).fill("No Info");
-    aRecord["Record Type"] = Array(dataArrayV2.length).fill("a");
+    aRecord["RecordType"] = Array(dataArrayV2.length).fill("a");
     aRecord["hostname"] = Array(dataArrayV2.length).fill("No Info");
   
     return aRecord;
   }
   async function updateRecordData(nsRecord, mxRecord, aRecord){
     console.log("OutS11: Updating data of subdomain (2)");
-    records = {"Domain":[], "IP":[], "ISP":[], "Record Type":[], "hostname":[]};
+    records = {"Domain":[], "IP":[], "ISP":[], "RecordType":[], "hostname":[]};
     records["Domain"] = records["Domain"].concat(nsRecord["Domain"]);
     records["IP"] = records["IP"].concat(nsRecord["IP"]);
     records["ISP"] = records["ISP"].concat(nsRecord["ISP"]);
-    records["Record Type"] = records["Record Type"].concat(nsRecord["Record Type"]);
+    records["RecordType"] = records["RecordType"].concat(nsRecord["RecordType"]);
     records["hostname"] = records["hostname"].concat(nsRecord["hostname"]);
     records["Domain"] = records["Domain"].concat(mxRecord["Domain"]);
     records["IP"] = records["IP"].concat(mxRecord["IP"]);
     records["ISP"] = records["ISP"].concat(mxRecord["ISP"]);
-    records["Record Type"] = records["Record Type"].concat(mxRecord["Record Type"]);
+    records["RecordType"] = records["RecordType"].concat(mxRecord["RecordType"]);
     records["hostname"] = records["hostname"].concat(mxRecord["hostname"]);
     records["Domain"] = records["Domain"].concat(aRecord["Domain"]);
     records["IP"] = records["IP"].concat(aRecord["IP"]);
     records["ISP"] = records["ISP"].concat(aRecord["ISP"]);
-    records["Record Type"] = records["Record Type"].concat(aRecord["Record Type"]);
+    records["RecordType"] = records["RecordType"].concat(aRecord["RecordType"]);
     records["hostname"] = records["hostname"].concat(aRecord["hostname"]);
   
     for (i = 0; i < records["Domain"].length; i++){
@@ -306,7 +308,7 @@ async function getSubdomains(searchDomain){
     subdomainData['Domain'] = subdomainData['Domain'].concat(NS_MX_A_recordData['Domain']);
     subdomainData['IP'] = subdomainData['IP'].concat(NS_MX_A_recordData['IP']);
     subdomainData['ISP'] = subdomainData['ISP'].concat(NS_MX_A_recordData['ISP']);
-    subdomainData['Record Type'] = subdomainData['Record Type'].concat(NS_MX_A_recordData['Record Type']);
+    subdomainData['RecordType'] = subdomainData['RecordType'].concat(NS_MX_A_recordData['RecordType']);
     subdomainData['hostname'] = subdomainData['hostname'].concat(NS_MX_A_recordData['hostname']);
   
     return subdomainData;
@@ -317,7 +319,7 @@ async function getSubdomains(searchDomain){
         subdomainData["Domain"].splice(i, 1);
         subdomainData["IP"].splice(i, 1);
         subdomainData["ISP"].splice(i, 1);
-        subdomainData["Record Type"].splice(i, 1);
+        subdomainData["RecordType"].splice(i, 1);
         subdomainData["hostname"].splice(i, 1);
         i--;
       }
@@ -360,7 +362,7 @@ async function getSubdomains(searchDomain){
     "AS15169 Google LLC,US","AS21296 Pricewaterhouse Coopers Services Ltd,GB","AS19551 Incapsula Inc,US","AS19551 Incapsula Inc,US","AS19551 Incapsula Inc,US","AS19551 Incapsula Inc,US","AS8844 EASYNET ENTERPRISE SERVICES LIMITED,GB","AS19551 Incapsula Inc,US","AS8075 Microsoft Corporation,NL","AS50061 PricewaterhouseCoopers GmbH WPG,DE","AS21296 Pricewaterhouse Coopers Services Ltd,GB","AS19551 Incapsula Inc,US","AS21296 Pricewaterhouse Coopers Services Ltd,GB","AS50061 PricewaterhouseCoopers GmbH WPG,DE","AS20940 Akamai International B.V.,HK","AS20426 PriceWaterhouseCoopers, LLP,US","AS15169 Google LLC,US","AS15169 Google LLC,GB","AS16839 SERVICENOW, INC.,US","AS50061 PricewaterhouseCoopers GmbH WPG,DE","AS20426 PriceWaterhouseCoopers, LLP,US","AS2686 AT&T Global Network Services, LLC,GB","AS19551 Incapsula Inc,US","AS20426 PriceWaterhouseCoopers, LLP,US","AS20426 PriceWaterhouseCoopers, LLP,US","AS19623 PriceWaterhouseCoopers, LLP,US","No Info,No Info","AS21296 Pricewaterhouse Coopers Services Ltd,GB","AS20426 PriceWaterhouseCoopers, LLP,US","AS20426 PriceWaterhouseCoopers, LLP,US","AS19623 PriceWaterhouseCoopers, LLP,US","AS8075 Microsoft Corporation,NL","AS20426 PriceWaterhouseCoopers, LLP,US","AS20426 PriceWaterhouseCoopers, LLP,US","AS36205 PwC Management Services LP,CA","AS50061 PricewaterhouseCoopers GmbH WPG,DE","AS19551 Incapsula Inc,US","No Info,No Info","AS21296 Pricewaterhouse Coopers Services Ltd,GB","AS19551 Incapsula Inc,US","AS19551 Incapsula Inc,US","AS19551 Incapsula Inc,US","AS19551 Incapsula Inc,US","AS50061 PricewaterhouseCoopers GmbH WPG,DE","AS21296 Pricewaterhouse Coopers Services Ltd,GB","No Info,No Info","AS8075 Microsoft Corporation,US","AS19551 Incapsula Inc,US","AS8075 Microsoft Corporation,US","AS21296 Pricewaterhouse Coopers Services Ltd,GB","AS15395 Rackspace Ltd.,GB","No Info,No Info","AS21296 Pricewaterhouse Coopers Services Ltd,GB","AS21296 Pricewaterhouse Coopers Services Ltd,GB","AS21296 Pricewaterhouse Coopers Services Ltd,GB","AS19551 Incapsula Inc,US","AS15169 Google LLC,US","AS21296 Pricewaterhouse Coopers Services Ltd,GB","AS20940 Akamai International B.V.,HK","AS19623 PriceWaterhouseCoopers, LLP,US","AS8075 Microsoft Corporation,NL","AS19623 PriceWaterhouseCoopers, LLP,US","AS8075 Microsoft Corporation,NL","AS19551 Incapsula Inc,US","AS20426 PriceWaterhouseCoopers, LLP,US","AS20426 PriceWaterhouseCoopers, LLP,US","AS20426 PriceWaterhouseCoopers, LLP,US","No Info,No Info","AS20426 PriceWaterhouseCoopers, LLP,US","AS20426 PriceWaterhouseCoopers, LLP,US","AS8075 Microsoft Corporation,NL","No Info,No Info","AS11404 Wave Broadband,US","AS15169 Google LLC,US","AS8075 Microsoft Corporation,US","AS19551 Incapsula Inc,US","No Info,No Info","AS20426 PriceWaterhouseCoopers, LLP,US","AS19551 Incapsula Inc,US","AS20426 PriceWaterhouseCoopers, LLP,US","AS3758 SingNet,SG","AS20426 PriceWaterhouseCoopers, LLP,US","AS20426 PriceWaterhouseCoopers, LLP,US","AS43898 Oracle Svenska AB,NL","AS20426 PriceWaterhouseCoopers, LLP,US","AS20426 PriceWaterhouseCoopers, LLP,US","AS8075 Microsoft Corporation,US","AS20426 PriceWaterhouseCoopers, LLP,US","AS20426 PriceWaterhouseCoopers, LLP,US","AS19551 Incapsula Inc,US","AS20426 PriceWaterhouseCoopers, LLP,US","AS19551 Incapsula Inc,US","AS20426 PriceWaterhouseCoopers, LLP,US","AS20426 PriceWaterhouseCoopers, LLP,US","AS20426 PriceWaterhouseCoopers, LLP,US","AS20426 PriceWaterhouseCoopers, LLP,US","AS19551 Incapsula Inc,US","AS50061 PricewaterhouseCoopers GmbH WPG,DE","AS50061 PricewaterhouseCoopers GmbH WPG,DE","AS20426 PriceWaterhouseCoopers, LLP,US","AS21296 Pricewaterhouse Coopers Services Ltd,GB","AS21296 Pricewaterhouse Coopers Services Ltd,GB","AS19551 Incapsula Inc,US","AS50061 PricewaterhouseCoopers GmbH WPG,DE","AS50061 PricewaterhouseCoopers GmbH WPG,DE","AS19551 Incapsula Inc,US","AS21296 Pricewaterhouse Coopers Services Ltd,GB","AS19623 PriceWaterhouseCoopers, LLP,US","AS50061 PricewaterhouseCoopers GmbH WPG,DE","AS19551 Incapsula Inc,US","AS20426 PriceWaterhouseCoopers, LLP,US","AS19551 Incapsula Inc,US","AS15169 Google LLC,US","AS15169 Google LLC,US","AS21296 Pricewaterhouse Coopers Services Ltd,GB","AS21296 Pricewaterhouse Coopers Services Ltd,GB","AS19551 Incapsula Inc,US","AS20940 Akamai International B.V.,HK","AS8075 Microsoft Corporation,AU","AS19551 Incapsula Inc,US","AS14618 Amazon.com, Inc.,US","AS8075 Microsoft Corporation,NL","AS6661 POST Luxembourg,LU","AS20426 PriceWaterhouseCoopers, LLP,US","AS20426 PriceWaterhouseCoopers, LLP,US","AS9498 BHARTI Airtel Ltd.,IN","AS8075 Microsoft Corporation,NL","AS20426 PriceWaterhouseCoopers, LLP,US","AS19623 PriceWaterhouseCoopers, LLP,US","AS8075 Microsoft Corporation,SG","AS22606 Salesforce.com, Inc.,US","AS20426 PriceWaterhouseCoopers, LLP,US","AS8075 Microsoft Corporation,US","AS7018 AT&T Services, Inc.,US","AS19551 Incapsula Inc,US","AS8075 Microsoft Corporation,AU","AS19551 Incapsula Inc,US","No Info,No Info","AS8075 Microsoft Corporation,NL","AS9498 BHARTI Airtel Ltd.,IN","AS15395 Rackspace Ltd.,GB","AS8075 Microsoft Corporation,US","AS19551 Incapsula Inc,US","AS18747 IFX Corporation,CO","No Info,No Info","AS19551 Incapsula Inc,US","AS19551 Incapsula Inc,US","AS19551 Incapsula Inc,US","AS15169 Google LLC,GB","AS20426 PriceWaterhouseCoopers, LLP,US","AS15169 Google LLC,US","AS19551 Incapsula Inc,US","AS8075 Microsoft Corporation,IE","AS20426 PriceWaterhouseCoopers, LLP,US","AS15169 Google LLC,US","AS50061 PricewaterhouseCoopers GmbH WPG,DE","AS8075 Microsoft Corporation,US","AS20426 PriceWaterhouseCoopers, LLP,US","AS19551 Incapsula Inc,US","AS8075 Microsoft Corporation,US","AS20426 PriceWaterhouseCoopers, LLP,US","No Info,No Info","AS19551 Incapsula Inc,US","AS20426 PriceWaterhouseCoopers, LLP,US","AS50061 PricewaterhouseCoopers GmbH WPG,DE","AS19551 Incapsula Inc,US","AS19551 Incapsula Inc,US","AS21296 Pricewaterhouse Coopers Services Ltd,GB","AS21296 Pricewaterhouse Coopers Services Ltd,GB","AS21296 Pricewaterhouse Coopers Services Ltd,GB","AS50061 PricewaterhouseCoopers GmbH WPG,DE","AS15395 Rackspace Ltd.,GB","AS21296 Pricewaterhouse Coopers Services Ltd,GB","AS13335 Cloudflare, Inc.,US","No Info,No Info","AS50061 PricewaterhouseCoopers GmbH WPG,DE","AS19551 Incapsula Inc,US","AS20940 Akamai International B.V.,HK","AS4760 HKT Limited,HK",
     "AS58593 Shanghai Blue Cloud Technology Co.,Ltd,CN","AS19551 Incapsula Inc,US","AS8075 Microsoft Corporation,NL","AS3758 SingNet,SG","AS8075 Microsoft Corporation,US","AS20426 PriceWaterhouseCoopers, LLP,US","AS8075 Microsoft Corporation,US","AS8220 COLT Technology Services Group Limited,GB","AS16509 Amazon.com, Inc.,AU","AS8075 Microsoft Corporation,US","AS8075 Microsoft Corporation,US","AS8075 Microsoft Corporation,SG","AS13335 Cloudflare, Inc.,US","AS19623 PriceWaterhouseCoopers, LLP,US","AS21296 Pricewaterhouse Coopers Services Ltd,GB","AS13335 Cloudflare, Inc.,US","AS20426 PriceWaterhouseCoopers, LLP,US","AS36204 MOBILE IRON INC,US","No Info,No Info","AS20426 PriceWaterhouseCoopers, LLP,US","AS19994 Rackspace Hosting,US","AS20426 PriceWaterhouseCoopers, LLP,US","AS8075 Microsoft Corporation,IE","AS21296 Pricewaterhouse Coopers Services Ltd,GB","AS20426 PriceWaterhouseCoopers, LLP,US","AS19551 Incapsula Inc,US","AS20426 PriceWaterhouseCoopers, LLP,US","No Info,No Info","AS16509 Amazon.com, Inc.,AU","AS19551 Incapsula Inc,US","AS19551 Incapsula Inc,US","AS20426 PriceWaterhouseCoopers, LLP,US","AS8075 Microsoft Corporation,US","AS15169 Google LLC,US","AS8075 Microsoft Corporation,US","AS19551 Incapsula Inc,US","AS20426 PriceWaterhouseCoopers, LLP,US","AS19551 Incapsula Inc,US","AS21296 Pricewaterhouse Coopers Services Ltd,GB","AS21296 Pricewaterhouse Coopers Services Ltd,GB","AS3215 Orange S.A.,FR","AS1136 KPN B.V.,NL","AS54113 Fastly,US","AS8075 Microsoft Corporation,US","AS14618 Amazon.com, Inc.,US","AS19551 Incapsula Inc,US","AS43894 Oracle Svenska AB,GB","AS8075 Microsoft Corporation,SG","AS20426 PriceWaterhouseCoopers, LLP,US","AS20940 Akamai International B.V.,HK","AS20940 Akamai International B.V.,HK","AS19551 Incapsula Inc,US","AS8075 Microsoft Corporation,IE","AS8075 Microsoft Corporation,IE","AS15169 Google LLC,GB","AS19623 PriceWaterhouseCoopers, LLP,US","No Info,No Info","AS8075 Microsoft Corporation,US","AS19551 Incapsula Inc,US","AS20426 PriceWaterhouseCoopers, LLP,US","AS19623 PriceWaterhouseCoopers, LLP,US","AS20940 Akamai International B.V.,HK","AS53831 Squarespace, Inc.,US","AS19551 Incapsula Inc,US","AS20426 PriceWaterhouseCoopers, LLP,US","AS8075 Microsoft Corporation,GB","AS50061 PricewaterhouseCoopers GmbH WPG,DE","AS8075 Microsoft Corporation,US","AS20426 PriceWaterhouseCoopers, LLP,US","No Info,US","AS19551 Incapsula Inc,US","AS15169 Google LLC,US","AS8075 Microsoft Corporation,US","AS7160 Oracle Corporation,US","AS14340 Salesforce.com, Inc.,DE","AS8075 Microsoft Corporation,NL","AS20426 PriceWaterhouseCoopers, LLP,US","AS20426 PriceWaterhouseCoopers, LLP,US","AS20426 PriceWaterhouseCoopers, LLP,US","AS8075 Microsoft Corporation,IE","No Info,No Info","AS19551 Incapsula Inc,US","AS20426 PriceWaterhouseCoopers, LLP,US","AS22606 Salesforce.com, Inc.,US","AS15169 Google LLC,GB","AS20426 PriceWaterhouseCoopers, LLP,US","AS8075 Microsoft Corporation,US","AS19551 Incapsula Inc,US","AS20426 PriceWaterhouseCoopers, LLP,US","AS21296 Pricewaterhouse Coopers Services Ltd,GB","AS21296 Pricewaterhouse Coopers Services Ltd,GB","AS19551 Incapsula Inc,US","AS17906 PricewaterhouseCoopers,AU","AS21296 Pricewaterhouse Coopers Services Ltd,GB","AS19551 Incapsula Inc,US","AS19551 Incapsula Inc,US","AS3215 Orange S.A.,FR","AS19551 Incapsula Inc,US","AS19551 Incapsula Inc,US","AS19551 Incapsula Inc,US","AS19551 Incapsula Inc,US","AS15169 Google LLC,US","AS17906 PricewaterhouseCoopers,AU","AS50061 PricewaterhouseCoopers GmbH WPG,DE","AS50061 PricewaterhouseCoopers GmbH WPG,DE","AS50061 PricewaterhouseCoopers GmbH WPG,DE","AS50061 PricewaterhouseCoopers GmbH WPG,DE","AS20426 PriceWaterhouseCoopers, LLP,US","AS15169 Google LLC,US","AS19551 Incapsula Inc,US","AS21296 Pricewaterhouse Coopers Services Ltd,GB","AS36205 PwC Management Services LP,CA","AS20940 Akamai International B.V.,HK","AS15169 Google LLC,US","AS20940 Akamai International B.V.,HK","AS20940 Akamai International B.V.,HK","No Info,CZ","AS9498 BHARTI Airtel Ltd.,IN","AS36205 PwC Management Services LP,CA","AS17054 CONTINENTAL BROADBAND PENNSYLVANIA, INC.,US","AS15169 Google LLC,GB","AS20426 PriceWaterhouseCoopers, LLP,US","AS19551 Incapsula Inc,US","AS20426 PriceWaterhouseCoopers, LLP,US","AS19551 Incapsula Inc,US","AS20940 Akamai International B.V.,HK","AS15395 Rackspace Ltd.,GB","AS19551 Incapsula Inc,US","AS19623 PriceWaterhouseCoopers, LLP,US","AS36205 PwC Management Services LP,CA","AS19623 PriceWaterhouseCoopers, LLP,US","AS8075 Microsoft Corporation,US","No Info,CZ","No Info,CZ","AS20426 PriceWaterhouseCoopers, LLP,US","AS20426 PriceWaterhouseCoopers, LLP,US","AS20426 PriceWaterhouseCoopers, LLP,US","AS19623 PriceWaterhouseCoopers, LLP,US","AS19551 Incapsula Inc,US","AS20426 PriceWaterhouseCoopers, LLP,US","AS15169 Google LLC,AU","AS20426 PriceWaterhouseCoopers, LLP,US","AS3758 SingNet,SG","AS8075 Microsoft Corporation,IN","AS8075 Microsoft Corporation,NL","AS21296 Pricewaterhouse Coopers Services Ltd,GB","AS20426 PriceWaterhouseCoopers, LLP,US","AS20426 PriceWaterhouseCoopers, LLP,US","AS8075 Microsoft Corporation,US","AS50061 PricewaterhouseCoopers GmbH WPG,DE","AS19551 Incapsula Inc,US","AS1241 Forthnet,GR","AS21296 Pricewaterhouse Coopers Services Ltd,GB","AS13335 Cloudflare, Inc.,US","AS21296 Pricewaterhouse Coopers Services Ltd,GB","AS19551 Incapsula Inc,US","AS21296 Pricewaterhouse Coopers Services Ltd,GB","AS19551 Incapsula Inc,US","AS21296 Pricewaterhouse Coopers Services Ltd,GB","AS54113 Fastly,US","AS4755 TATA Communications formerly VSNL is Leading ISP,IN","AS20940 Akamai International B.V.,HK","AS8075 Microsoft Corporation,US","AS8075 Microsoft Corporation,US","AS20426 PriceWaterhouseCoopers, LLP,US","AS22538 IBM Business Consulting Services,US","AS14618 Amazon.com, Inc.,US","AS7018 AT&T Services, Inc.,US","AS2686 AT&T Global Network Services, LLC,GB","AS15169 Google LLC,US","AS14618 Amazon.com, Inc.,US","AS15169 Google LLC,US","AS15169 Google LLC,SG","AS174 Cogent Communications,US","AS54113 Fastly,US","AS15169 Google LLC,US","AS8075 Microsoft Corporation,US","AS19551 Incapsula Inc,US","AS8075 Microsoft Corporation,US","AS15169 Google LLC,US","AS36205 PwC Management Services LP,CA","AS701 MCI Communications Services, Inc. d/b/a Verizon Business,US","AS14340 Salesforce.com, Inc.,DE","AS19551 Incapsula Inc,US",
     "No Info,No Info","AS20426 PriceWaterhouseCoopers, LLP,US","AS19623 PriceWaterhouseCoopers, LLP,US","AS50061 PricewaterhouseCoopers GmbH WPG,DE","AS19551 Incapsula Inc,US","AS16509 Amazon.com, Inc.,IE","AS20426 PriceWaterhouseCoopers, LLP,US","AS53831 Squarespace, Inc.,US","AS3758 SingNet,SG","AS9304 HGC Global Communications Limited,HK","No Info,CZ","AS20426 PriceWaterhouseCoopers, LLP,US","AS16276 OVH SAS,CA","No Info,No Info","AS15169 Google LLC,GB","AS20426 PriceWaterhouseCoopers, LLP,US","No Info,No Info","AS20426 PriceWaterhouseCoopers, LLP,US","AS8075 Microsoft Corporation,NL","AS15169 Google LLC,US","AS20426 PriceWaterhouseCoopers, LLP,US","No Info,No Info","AS21296 Pricewaterhouse Coopers Services Ltd,GB","AS21296 Pricewaterhouse Coopers Services Ltd,GB","No Info,No Info","AS15395 Rackspace Ltd.,GB","AS50061 PricewaterhouseCoopers GmbH WPG,DE","AS8844 EASYNET ENTERPRISE SERVICES LIMITED,GB","AS21296 Pricewaterhouse Coopers Services Ltd,GB","AS15169 Google LLC,US","AS20426 PriceWaterhouseCoopers, LLP,US","AS20426 PriceWaterhouseCoopers, LLP,US","AS3215 Orange S.A.,FR","AS50061 PricewaterhouseCoopers GmbH WPG,DE","AS8844 EASYNET ENTERPRISE SERVICES LIMITED,GB","AS19551 Incapsula Inc,US","AS17906 PricewaterhouseCoopers,AU","AS20426 PriceWaterhouseCoopers, LLP,US","AS21296 Pricewaterhouse Coopers Services Ltd,GB","AS15525 MEO - SERVICOS DE COMUNICACOES E MULTIMEDIA S.A.,PT","AS50061 PricewaterhouseCoopers GmbH WPG,DE","AS20426 PriceWaterhouseCoopers, LLP,US","AS20426 PriceWaterhouseCoopers, LLP,US","AS19551 Incapsula Inc,US","No Info,No Info","AS19623 PriceWaterhouseCoopers, LLP,US","AS15169 Google LLC,AU","AS19551 Incapsula Inc,US","AS19551 Incapsula Inc,US","AS8075 Microsoft Corporation,US","AS20426 PriceWaterhouseCoopers, LLP,US","AS8075 Microsoft Corporation,NL","AS8075 Microsoft Corporation,HK","AS8075 Microsoft Corporation,US","AS8075 Microsoft Corporation,NL","AS15169 Google LLC,US","No Info,CZ","AS36351 SoftLayer Technologies Inc.,US","AS16839 SERVICENOW, INC.,US","AS19551 Incapsula Inc,US","AS19551 Incapsula Inc,US","AS20426 PriceWaterhouseCoopers, LLP,US","AS20426 PriceWaterhouseCoopers, LLP,US","AS19551 Incapsula Inc,US","AS19551 Incapsula Inc,US","No Info,No Info","AS19623 PriceWaterhouseCoopers, LLP,US","AS8075 Microsoft Corporation,US","AS15169 Google LLC,US","AS20426 PriceWaterhouseCoopers, LLP,US","AS20426 PriceWaterhouseCoopers, LLP,US","No Info,CZ","AS20426 PriceWaterhouseCoopers, LLP,US","AS19551 Incapsula Inc,US","AS21296 Pricewaterhouse Coopers Services Ltd,GB","AS19551 Incapsula Inc,US","AS19551 Incapsula Inc,US","AS21296 Pricewaterhouse Coopers Services Ltd,GB","AS21296 Pricewaterhouse Coopers Services Ltd,GB","AS19551 Incapsula Inc,US","AS21296 Pricewaterhouse Coopers Services Ltd,GB","AS21296 Pricewaterhouse Coopers Services Ltd,GB","AS21296 Pricewaterhouse Coopers Services Ltd,GB","AS7303 Telecom Argentina S.A.,AR","AS3741 Internet Solutions,ZA","AS21296 Pricewaterhouse Coopers Services Ltd,GB","AS19551 Incapsula Inc,US","AS21296 Pricewaterhouse Coopers Services Ltd,GB","AS45899 VNPT Corp,VN","AS20940 Akamai International B.V.,HK","AS8075 Microsoft Corporation,US","AS8075 Microsoft Corporation,US","AS4515 HKT Limited,HK","AS50061 PricewaterhouseCoopers GmbH WPG,DE","AS19551 Incapsula Inc,US","AS20426 PriceWaterhouseCoopers, LLP,US","AS8075 Microsoft Corporation,NL","AS20426 PriceWaterhouseCoopers, LLP,US","AS20426 PriceWaterhouseCoopers, LLP,US","AS25694 Atomic Data LLC,US","AS19623 PriceWaterhouseCoopers, LLP,US","AS20426 PriceWaterhouseCoopers, LLP,US","AS15169 Google LLC,US","AS19623 PriceWaterhouseCoopers, LLP,US","AS3758 SingNet,SG","AS15395 Rackspace Ltd.,GB","AS17906 PricewaterhouseCoopers,AU","AS20426 PriceWaterhouseCoopers, LLP,US","AS8075 Microsoft Corporation,NL","AS20426 PriceWaterhouseCoopers, LLP,US","AS20426 PriceWaterhouseCoopers, LLP,US","AS8075 Microsoft Corporation,US","AS19551 Incapsula Inc,US","AS19551 Incapsula Inc,US","AS8075 Microsoft Corporation,US","AS8075 Microsoft Corporation,NL","No Info,No Info","AS20426 PriceWaterhouseCoopers, LLP,US","AS14340 Salesforce.com, Inc.,DE","AS8075 Microsoft Corporation,US","AS20426 PriceWaterhouseCoopers, LLP,US","AS15169 Google LLC,GB","AS7018 AT&T Services, Inc.,US","AS7018 AT&T Services, Inc.,US","AS19551 Incapsula Inc,US","AS4192 Oracle Corporation,US","AS8075 Microsoft Corporation,GB","AS19551 Incapsula Inc,US","AS19551 Incapsula Inc,US","AS7470 TRUE INTERNET Co.,Ltd.,TH","AS19551 Incapsula Inc,US","AS21296 Pricewaterhouse Coopers Services Ltd,GB","AS8075 Microsoft Corporation,CA","AS20426 PriceWaterhouseCoopers, LLP,US","AS19551 Incapsula Inc,US","AS19551 Incapsula Inc,US","AS8844 EASYNET ENTERPRISE SERVICES LIMITED,GB","AS19551 Incapsula Inc,US","AS36205 PwC Management Services LP,CA","AS21296 Pricewaterhouse Coopers Services Ltd,GB","AS21296 Pricewaterhouse Coopers Services Ltd,GB","AS15395 Rackspace Ltd.,GB","AS2158 Hewlett-Packard Company,US","AS21296 Pricewaterhouse Coopers Services Ltd,GB","AS21296 Pricewaterhouse Coopers Services Ltd,GB","AS21296 Pricewaterhouse Coopers Services Ltd,GB","AS21296 Pricewaterhouse Coopers Services Ltd,GB","AS19551 Incapsula Inc,US","AS21296 Pricewaterhouse Coopers Services Ltd,GB","AS19551 Incapsula Inc,US","AS8075 Microsoft Corporation,NL","AS8075 Microsoft Corporation,US","AS50061 PricewaterhouseCoopers GmbH WPG,DE","AS8075 Microsoft Corporation,NL","AS19551 Incapsula Inc,US","AS15169 Google LLC,US","AS20426 PriceWaterhouseCoopers, LLP,US","AS8075 Microsoft Corporation,US","AS50061 PricewaterhouseCoopers GmbH WPG,DE","AS7470 TRUE INTERNET Co.,Ltd.,TH","AS19551 Incapsula Inc,US","AS19551 Incapsula Inc,US","AS8075 Microsoft Corporation,US","AS50061 PricewaterhouseCoopers GmbH WPG,DE","AS8075 Microsoft Corporation,US","AS20426 PriceWaterhouseCoopers, LLP,US","AS19551 Incapsula Inc,US","AS8075 Microsoft Corporation,US","AS43898 Oracle Svenska AB,NL","AS8075 Microsoft Corporation,NL","AS3758 SingNet,SG","AS20426 PriceWaterhouseCoopers, LLP,US","AS15169 Google LLC,DE","AS19551 Incapsula Inc,US","AS19551 Incapsula Inc,US","No Info,No Info","AS15169 Google LLC,SG","AS20426 PriceWaterhouseCoopers, LLP,US","AS20426 PriceWaterhouseCoopers, LLP,US","AS15169 Google LLC,US","AS8075 Microsoft Corporation,US","AS8075 Microsoft Corporation,US","AS20426 PriceWaterhouseCoopers, LLP,US",
-    "AS20426 PriceWaterhouseCoopers, LLP,US","AS8075 Microsoft Corporation,US","AS8075 Microsoft Corporation,NL","AS20426 PriceWaterhouseCoopers, LLP,US","AS8075 Microsoft Corporation,US","AS50061 PricewaterhouseCoopers GmbH WPG,DE","AS21296 Pricewaterhouse Coopers Services Ltd,GB","AS21296 Pricewaterhouse Coopers Services Ltd,GB","AS21296 Pricewaterhouse Coopers Services Ltd,GB","AS21296 Pricewaterhouse Coopers Services Ltd,GB","AS21296 Pricewaterhouse Coopers Services Ltd,GB","AS17906 PricewaterhouseCoopers,AU","AS50061 PricewaterhouseCoopers GmbH WPG,DE","AS19551 Incapsula Inc,US","AS21296 Pricewaterhouse Coopers Services Ltd,GB","AS15395 Rackspace Ltd.,GB","AS19551 Incapsula Inc,US","AS13364 Jive Software Inc.,US","AS20940 Akamai International B.V.,HK","AS19551 Incapsula Inc,US","AS20426 PriceWaterhouseCoopers, LLP,US","AS20426 PriceWaterhouseCoopers, LLP,US","AS20426 PriceWaterhouseCoopers, LLP,US","AS397213 NeuStar, Inc.,US","AS15169 Google LLC,US","AS15169 Google LLC,US","AS15169 Google LLC,US","AS15169 Google LLC,US","AS15169 Google LLC,US","AS20426 PriceWaterhouseCoopers, LLP,US"],"Record Type":["host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host",
+    "AS20426 PriceWaterhouseCoopers, LLP,US","AS8075 Microsoft Corporation,US","AS8075 Microsoft Corporation,NL","AS20426 PriceWaterhouseCoopers, LLP,US","AS8075 Microsoft Corporation,US","AS50061 PricewaterhouseCoopers GmbH WPG,DE","AS21296 Pricewaterhouse Coopers Services Ltd,GB","AS21296 Pricewaterhouse Coopers Services Ltd,GB","AS21296 Pricewaterhouse Coopers Services Ltd,GB","AS21296 Pricewaterhouse Coopers Services Ltd,GB","AS21296 Pricewaterhouse Coopers Services Ltd,GB","AS17906 PricewaterhouseCoopers,AU","AS50061 PricewaterhouseCoopers GmbH WPG,DE","AS19551 Incapsula Inc,US","AS21296 Pricewaterhouse Coopers Services Ltd,GB","AS15395 Rackspace Ltd.,GB","AS19551 Incapsula Inc,US","AS13364 Jive Software Inc.,US","AS20940 Akamai International B.V.,HK","AS19551 Incapsula Inc,US","AS20426 PriceWaterhouseCoopers, LLP,US","AS20426 PriceWaterhouseCoopers, LLP,US","AS20426 PriceWaterhouseCoopers, LLP,US","AS397213 NeuStar, Inc.,US","AS15169 Google LLC,US","AS15169 Google LLC,US","AS15169 Google LLC,US","AS15169 Google LLC,US","AS15169 Google LLC,US","AS20426 PriceWaterhouseCoopers, LLP,US"],"RecordType":["host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host",
     "host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host",
     "host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","host","dns","dns","dns","dns","mx","mx","mx","mx","mx","a"],"hostname":["No Info","No Info","No Info","No Info","a184-84-116-132.deploy.static.akamaitechnologies.com","a184-84-116-132.deploy.static.akamaitechnologies.com","No Info","a184-84-116-132.deploy.static.akamaitechnologies.com","No Info","ec2-52-60-165-183.ca-central-1.compute.amazonaws.com","No Info","No Info","a184-84-125-55.deploy.static.akamaitechnologies.com","vip.secure.ca.pwc.com","pwc2-web.interdart.co.uk","No Info","No Info","107.154.81.177.ip.incapdns.net","a23-219-172-137.deploy.static.akamaitechnologies.com","cloud.uk.info.pwc.com","No Info","No Info","ec2-34-202-90-247.compute-1.amazonaws.com","No Info","No Info","No Info","cloud.edistribution.pwc.com","No Info","a23-41-104-216.deploy.static.akamaitechnologies.com","cloud.ca.info.pwc.com","No Info","No Info","a23-41-104-216.deploy.static.akamaitechnologies.com","No Info","No Info","No Info","a184-51-102-115.deploy.static.akamaitechnologies.com","No Info","any-in-2015.1e100.net","No Info","No Info","a23-41-102-127.deploy.static.akamaitechnologies.com","No Info","No Info","a184-84-116-132.deploy.static.akamaitechnologies.com","No Info","a23-41-102-127.deploy.static.akamaitechnologies.com","palm.niceandserious.com","No Info","No Info","a184-84-116-132.deploy.static.akamaitechnologies.com","pwcinform.pwc.com","No Info","ec2-52-20-172-112.compute-1.amazonaws.com","any-in-2615.1e100.net","ck32.mta.exacttarget.com","No Info","info.ca.pwc.com","server-13-226-115-53.hkg62.r.cloudfront.net","ec2-18-139-47-197.ap-southeast-1.compute.amazonaws.com","No Info","No Info","No Info","No Info","No Info","114.242.204.35.bc.googleusercontent.com","No Info","click.us.info.pwc.com","107.154.81.177.ip.incapdns.net","No Info","No Info","107.154.81.177.ip.incapdns.net","No Info","No Info","No Info","No Info","No Info","No Info","No Info","asiampx014.pwc.com","107.154.81.177.ip.incapdns.net","No Info","189.29.241.35.bc.googleusercontent.com","No Info","support.pwc.com","support-stg.pwc.com","us-fedsvc2-stage.pwc.com","No Info","No Info","No Info","No Info","No Info","No Info","No Info","No Info","No Info","lxsmpr20.pwc.com","mta.email.pwc.com","No Info","No Info","No Info","No Info","pwcurlredirect.pwc.com","No Info","requests-and-queries-engage-west.pwc.com","ec2-52-18-176-9.eu-west-1.compute.amazonaws.com","asklearning.com","api-requests-and-queries-engage-west.pwc.com","56.120.94.34.bc.googleusercontent.com","www.pwc-economyuk.com","No Info","No Info","No Info","No Info","No Info","No Info","support.pwc.com","No Info","www.pwc-economyuk.com","www.sourcingvalue.com","stageukapps.pwc.com","teamspace1.pwc.com","usmydevelopment.pwc.com","107.154.81.177.ip.incapdns.net","pwc2-web.interdart.co.uk","No Info","No Info","cc00.vpn.pwc.com","No Info","emampx004.pwc.com","No Info","No Info","No Info","No Info","No Info","No Info","No Info","No Info","No Info","No Info","No Info","No Info","a23-219-172-137.deploy.static.akamaitechnologies.com","a23-219-172-137.deploy.static.akamaitechnologies.com","No Info","No Info","No Info","No Info","No Info","ftp03-tdc.nam.pwcinternal.com","No Info","No Info","No Info","No Info","No Info","29.96.196.104.bc.googleusercontent.com","latlkdlpsapp018-net0.pwc.com","lxriczemtpapf006.pwc.com","ec2-3-0-207-158.ap-southeast-1.compute.amazonaws.com","No Info","No Info","No Info","No Info","latlkdlpsapp009-net0.pwc.com","No Info","No Info","No Info","No Info","37.103.98.34.bc.googleusercontent.com","No Info","No Info","No Info","west-apps1-teamspace.pwc.com","No Info","No Info","No Info","107.154.81.177.ip.incapdns.net","dns2.pwcglobal.com.au","107.154.81.177.ip.incapdns.net","benchmarkingclub.pwc.com","No Info","No Info","No Info","No Info","No Info","107.154.81.177.ip.incapdns.net","No Info","No Info","No Info","No Info","No Info","No Info","degpfptppapav01.pwc.com","v131.vx-email.com","No Info","107.154.81.177.ip.incapdns.net","No Info","mindlinkupgrade.pwc.com","No Info","No Info","No Info","benchmarkingclub.pwc.com","No Info","No Info","No Info","No Info","benchmarkingclub.pwc.com","hkg12s13-in-f19.1e100.net","a23-219-172-137.deploy.static.akamaitechnologies.com","No Info","No Info","No Info","ec2-3-11-251-176.eu-west-2.compute.amazonaws.com","No Info","No Info","No Info","No Info","No Info","requests-and-queries-engage-west.pwc.com","No Info","No Info","pwcurlredirect.pwc.com","No Info","No Info","No Info","No Info","No Info","No Info","215.58.246.35.bc.googleusercontent.com","No Info","No Info","No Info","No Info","No Info","No Info","No Info","No Info","No Info","No Info","pwcurlredirect.pwc.com","No Info","No Info","www1pwcuniv.pwc.com","No Info","No Info","meah01.pwc.com","pwccanada4-ng.ca.pwc.com","saratoga.pwc.com","No Info","benchmarkingclub.pwc.com","No Info","benchmarkingclub.pwc.com","No Info","No Info","No Info","No Info","No Info","No Info","92-64-218-42.biz.kpn.net","pwccanadafw-t1-vip.ca.pwc.com","No Info","No Info","No Info","biasurvey.ca.pwc.com","107.154.81.177.ip.incapdns.net","a23-219-172-137.deploy.static.akamaitechnologies.com","sin10s06-in-f83.1e100.net",
     "a23-219-172-123.deploy.static.akamaitechnologies.com","No Info","comperio.pwc.com","latlkdlpsapp020-net0.pwc.com","mysite-gch-tst-us.pwc.com","No Info","No Info","No Info","No Info","No Info","No Info","No Info","pwcurlredirect.pwc.com","No Info","No Info","support.pwc.com","No Info","vcmart.pwc.com","pwcurlredirect.pwc.com","www0.i-grasp.com","No Info","No Info","107.154.81.177.ip.incapdns.net","No Info","No Info","No Info","No Info","No Info","tps.pwc.com","usgpfptppapav06.pwc.com","No Info","No Info","pwcurlredirect.pwc.com","No Info","No Info","No Info","No Info","pociprc.pwc.com","stgukfy13beyond.pwc.com","No Info","No Info","No Info","reply.s50.exacttarget.com","No Info","107.154.81.177.ip.incapdns.net","No Info","any-in-2615.1e100.net","No Info","107.154.81.177.ip.incapdns.net","No Info","No Info","No Info","No Info","a23-219-172-137.deploy.static.akamaitechnologies.com","sin10s06-in-f83.1e100.net","No Info","No Info","No Info","express.medallia.com","64.147.106.95.static.nyinternet.net","No Info","No Info","ec2-34-211-247-102.us-west-2.compute.amazonaws.com","No Info","250.3.241.35.bc.googleusercontent.com","channel3.pwc.com","pwc2-web.interdart.co.uk","No Info","No Info","201-048-054-131.static.ctbctelecom.com.br","ftssurveys.pwc.com","No Info","107.154.81.177.ip.incapdns.net","any-in-2415.1e100.net","quickconfirm-west-stage.pwc.com","No Info","107.154.81.177.ip.incapdns.net","support.pwc.com","No Info","ec2-174-129-232-59.compute-1.amazonaws.com","No Info","any-in-2215.1e100.net","No Info","No Info","No Info","No Info","No Info","No Info","No Info","No Info","No Info","No Info","No Info","No Info","107.154.81.177.ip.incapdns.net","secureuk.pwc.com","No Info","No Info","No Info","No Info","107.154.81.177.ip.incapdns.net","benchmarkingclub.pwc.com","107.154.81.177.ip.incapdns.net","No Info","No Info","No Info","No Info","a23-219-172-137.deploy.static.akamaitechnologies.com","No Info","a23-219-172-151.deploy.static.akamaitechnologies.com","server-13-226-115-59.hkg62.r.cloudfront.net","No Info","No Info","No Info","No Info","ec2-107-20-247-107.compute-1.amazonaws.com","14.142.122.2.static-kolkata.vsnl.net.in","No Info","quickconfirm-west-int.pwc.com","107.154.81.177.ip.incapdns.net","No Info","107.154.81.177.ip.incapdns.net","No Info","analyst.pwc.com","No Info","190.223.197.35.bc.googleusercontent.com","bomgartraffic1.pwc.com","No Info","brandsite1.pwc.com","No Info","emmalite.pwc.com","No Info","65.231.197.35.bc.googleusercontent.com","No Info","lxsmpr18.pwc.com","mdms-ext1.pwc.com","12.118.95.34.bc.googleusercontent.com","215.58.246.35.bc.googleusercontent.com","No Info","No Info","No Info","uxsspr04-inside.pwc.com","pwcurlredirect.pwc.com","cloud.us.info.pwc.com","No Info","No Info","No Info","No Info","No Info","No Info","No Info","No Info","wc07vpn.pwc.com","No Info","db-stage-sequence.pwc.com","degpfptppapav20.pwc.com","107.154.81.177.ip.incapdns.net","benchmarkingclub.pwc.com","No Info","stgadsite.pwc.com","No Info","No Info","No Info","No Info","No Info","No Info","No Info","any-in-2415.1e100.net","No Info","107.154.81.177.ip.incapdns.net","No Info","No Info","No Info","No Info","No Info","No Info","No Info","No Info","No Info","mccvpn.pwc.com","pac-globalstar-tdc.pwc.com","pwctools.pwc.com","No Info","No Info","pwcurlredirect.pwc.com","wcstgvpn.pwc.com","No Info","No Info","73.191.94.34.bc.googleusercontent.com","No Info","107.154.81.177.ip.incapdns.net","No Info","No Info","No Info","No Info","No Info","No Info","No Info","No Info","No Info","No Info","No Info","No Info","No Info","No Info","No Info","redirect2gos.pwc.com","No Info","vandesign.ca.pwc.com","No Info","No Info","No Info","No Info","No Info","No Info","iprc.pwc.com","uk-webaut501.pwc.com","No Info","ukpnmsoftsts-stg.pwc.com","No Info","No Info","No Info","No Info","No Info","107.154.81.177.ip.incapdns.net","ec2-50-18-96-108.us-west-1.compute.amazonaws.com","No Info","162.200.186.35.bc.googleusercontent.com","us-svideo2.pwc.com","No Info","107.154.81.177.ip.incapdns.net","No Info","No Info","No Info","No Info","No Info","No Info","No Info","No Info","www.sourcingvalue.com","No Info","No Info","107.154.81.177.ip.incapdns.net","infpgw04.in.pwc.com","ec2-3-221-222-235.compute-1.amazonaws.com","No Info","webex.pwc.com","tw19-static44.tw1.com","No Info","host-213-153-245-172.reverse.superonline.net","pwc.i-grasp.com","No Info","cvatest.pwc.com","No Info","beauty.pwc.com","No Info","No Info","No Info","No Info","No Info","No Info","No Info","benchmarkingclub.pwc.com","No Info","No Info","ec2-54-84-62-26.compute-1.amazonaws.com","107.154.81.177.ip.incapdns.net","No Info","a23-219-172-137.deploy.static.akamaitechnologies.com","No Info","ch-extpux010.pwc.ch","No Info","No Info","No Info","No Info","107.154.81.177.ip.incapdns.net","No Info","No Info","No Info","No Info","No Info","No Info","No Info","No Info","No Info","vip-149-96-236-116.cust.service-now.com","No Info","No Info","No Info","No Info","No Info","No Info","No Info","pwcurlredirect.pwc.com","No Info","No Info","No Info","2739-tableau.pwc.com","No Info","107.154.81.177.ip.incapdns.net","bomgartraffic2.pwc.com","No Info","No Info","No Info","No Info","benchmarkingclub.pwc.com","any-in-2615.1e100.net","No Info","No Info","mobilereguk.pwc.com","No Info","No Info","No Info","No Info","No Info","107.154.81.177.ip.incapdns.net","a23-219-172-137.deploy.static.akamaitechnologies.com","hkg07s29-in-f19.1e100.net","a23-41-104-216.deploy.static.akamaitechnologies.com","107.154.81.177.ip.incapdns.net","No Info","No Info","No Info","42.42.73.34.bc.googleusercontent.com","No Info","No Info","No Info","No Info","No Info","No Info","No Info","No Info","No Info","No Info","No Info","No Info","No Info","No Info","181.249.231.35.bc.googleusercontent.com","No Info","No Info","No Info","No Info","support.pwc.com","vip-148-139-9-36.cust.service-now.com","No Info","No Info","lxsmpr19.pwc.com","No Info","No Info","No Info","No Info","No Info","west-sts-teamspace.pwc.com","No Info","ftpuk.pwc.com","No Info","No Info","No Info","No Info","No Info","degpfptppapav10.pwc.com","benchmarkingclub.pwc.com","107.154.81.177.ip.incapdns.net","No Info","saratoga.pwc.com","ukembark.pwc.com","No Info","webex-s.pwc.com","No Info","ip-77-221-181-55.dsl.twang.net","sin10s06-in-f83.1e100.net",
@@ -380,3 +382,350 @@ async function getSubdomains(searchDomain){
     }
     return outputTokenize;
   }
+/**Functions for outS12 */
+function getOutS12(data){
+  console.log("OutS12: Working on filtering data which contain non-production entry point keyword")
+  const nonProdEntryPointList = ['dev','uat','qa','test','stag','temp','tmp'];
+  var dataLogin = [];//{"Domain":[], "IP":[], "ISP":[], "hostname": []};
+  for (i = 0; i < data.length; i++){
+    var containStr = false;
+    for (j = 0; j < nonProdEntryPointList.length; j++){
+      if (data[i]["Domain"].includes(nonProdEntryPointList[j])){
+        containStr = true;
+        break;
+      }
+    }
+    if (containStr){
+      dataLogin.push({
+        "Domain": data[i]["Domain"], 
+        "IP": data[i]["IP"],
+        "ISP": data[i]["ISP"],
+        "hostname": data[i]["hostname"]});
+    }
+  }
+  return dataLogin;
+}
+/**Functions for outS13 */
+function getTempOutS13Data(){
+  return {"Host":["173.245.58.231","173.245.58.231","108.162.195.239","108.162.195.239","144.76.47.198","144.76.47.198","144.76.47.198","144.76.47.198"],"Retrieve Time":["2020-11-26T14:23:47","2020-11-26T14:23:47","2020-11-26T14:23:48","2020-11-26T14:23:48","2020-11-26T14:23:48","2020-11-26T14:23:48","2020-11-26T14:23:48","2020-11-26T14:23:48"],"Timestamp":["2020-11-22T07:07:44.775060","2020-11-19T12:24:01.618524","2020-11-22T04:36:53.404203","2020-11-21T10:19:34.196723","2020-11-19T06:27:55.666323","2020-11-17T06:47:01.273848","2020-11-17T03:48:30.573740","2020-11-17T03:18:26.158204"],"Port":["53","53","53","53","123","22","80","443"],"Protocol":["dns-udp","dns-tcp","dns-udp","dns-tcp","ntp","ssh","http","https"],"Organization":["Cloudflare","Cloudflare","Cloudflare","Cloudflare","Hetzner Online GmbH","Hetzner Online GmbH","Hetzner Online GmbH","Hetzner Online GmbH"],"Operating System":["None","None","None","None","None","None","None","None"],"Service":["None","None","None","None","None","OpenSSH","nginx","nginx"],"Common Platform Enumeration (\"CPE\")":["None","None","None","None","None","cpe:/a:openbsd:openssh:5.3","cpe:/a:jquery:jquery,cpe:/a:getbootstrap:bootstrap,cpe:/a:igor_sysoev:nginx","cpe:/a:igor_sysoev:nginx"],"Website Title":["None","None","None","None","None","None","Online Games. Play for free","None"],"Service Version":["None","None","None","None","None","None","nginx","nginx"],"HTTP Redirect":["None","None","None","None","None","None","[{\"host\":\"144.76.47.198\",\"data\":\"HTTP/1.1 302 Found\\r\\nServer: nginx\\r\\nDate: Tue, 17 Nov 2020 03:48:28 GMT\\r\\nContent-Type: text/html; charset=utf-8\\r\\nContent-Length: 0\\r\\nConnection: keep-alive\\r\\nLocation: http://game-game.com/404.php\\r\\n\\r\\n\",\"location\":\"/\"},{\"host\":\"game-game.com\",\"data\":\"HTTP/1.1 301 Moved Permanently\\r\\nServer: nginx\\r\\nDate: Tue, 17 Nov 2020 03:48:29 GMT\\r\\nContent-Type: text/html; charset=utf-8\\r\\nContent-Length: 0\\r\\nConnection: keep-alive\\r\\nLocation: /404.php/\\r\\n\\r\\n\",\"location\":\"/404.php\"}]","None"],"SSL Acceptable Certification Authorities":["None","None","None","None","None","None","None","None"],"SSL ALPN (\"Application-Layer Protocol Negotiation\")":["None","None","None","None","None","None","None","http/1.1"],"SSL Cert Expired":["None","None","None","None","None","None","None","true"],"SSL Cert Expiration Date":["None","None","None","None","None","None","None","20200726235959Z"],"sSSL Cert Extensions":["None","None","None","None","None","None","None","[object Object],[object Object],[object Object],[object Object],[object Object],[object Object],[object Object],[object Object],[object Object]"],"SSL Cert Fingerprint in SHA1":["None","None","None","None","None","None","None","8d88a694b9d34163074487f4c22c0a52a0a515e6"],"SSL Cert Fingerprint in SHA256":["None","None","None","None","None","None","None","1fadec9eb995c8663153c6d113b79019571e618c2fe90c19a1c2a4883741e3e3"],"SSL Cert Issued On":["None","None","None","None","None","None","None","20200427000000Z"],"SSL Cert Issuer Country Name":["None","None","None","None","None","None","None","GB"],"SSL Cert Issuer Common Name":["None","None","None","None","None","None","None","Sectigo RSA Domain Validation Secure Server CA"],"SSL Cert Issuer Locality":["None","None","None","None","None","None","None","Salford"],"SSL Cert Issuer Organization":["None","None","None","None","None","None","None","Sectigo Limited"],"SSL Cert Issuer Organizational Unit":["None","None","None","None","None","None","None","None"],"SSL Cert Issuer State or Province Name":["None","None","None","None","None","None","None","Greater Manchester"],"SSL Cert Public Key Bits":["None","None","None","None","None","None","None","2048"],"SSL Cert Public Key Type":["None","None","None","None","None","None","None","rsa"],"SSL Cert Serial":["None","None","None","None","None","None","None","1.1757548943851957e+38"],
+  "SSL Cert Signature Algorithm":["None","None","None","None","None","None","None","sha256WithRSAEncryption"],"SSL Cert Subject Common Name":["None","None","None","None","None","None","None","game-game.com.de"],"SSL Cert Subject Organizational Unit":["None","None","None","None","None","None","None","None"],"SSL Cert Version":["None","None","None","None","None","None","None","2"],"SSL Chain":["None","None","None","None","None","None","None",
+  "-----BEGIN CERTIFICATE-----MIIFxDCCBKygAwIBAgIQWHQ3MHwApwCQk3ga5dwkqDANBgkqhkiG9w0BAQsFADCB\njzELMAkGA1UEBhMCR0IxGzAZBgNVBAgTEkdyZWF0ZXIgTWFuY2hlc3RlcjEQMA4G\nA1UEBxMHU2FsZm9yZDEYMBYGA1UEChMPU2VjdGlnbyBMaW1pdGVkMTcwNQYDVQQD\nEy5TZWN0aWdvIFJTQSBEb21haW4gVmFsaWRhdGlvbiBTZWN1cmUgU2VydmVyIENB\nMB4XDTIwMDQyNzAwMDAwMFoXDTIwMDcyNjIzNTk1OVowGzEZMBcGA1UEAxMQZ2Ft\nZS1nYW1lLmNvbS5kZTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBANDQ\nbehItrs409Oj72p+kB0dRxJJqVGhCNqyWaohf2icPDDRoit4oyC9Ee+rL9IY1SCI\nWPwAyk9RttqEpgY1IKnsUnlMJWHTwMGL02t2xGWlpB7B1r+4nZt4WWCiaHlq8bVI\nfKDNMF7IHGS6kRdM7UZMUJR12chPjHRs4RcDQxOeqje42LSi8DXr3lKAjIOFv8Aa\nZ3g5l/STrmlFLe0ebOgKjjU94NpfB+8m9Wt74ZfT6C6RilnnrNIbnoaKXRIINW8q\n25SH8pmb2sgZdQxlc3o/FkYjD0w3xk5rTanKS/glvCQA95YmI4PJ8eoVKdBpQyyL\nDwuW5p5S6+hgQKU4250CAwEAAaOCAo0wggKJMB8GA1UdIwQYMBaAFI2MXsRUrYrh\nd+mb+ZsF4bgBjWHhMB0GA1UdDgQWBBRwzjiJnzwQ7dmddyy19ZWTlGzcUTAOBgNV\nHQ8BAf8EBAMCBaAwDAYDVR0TAQH/BAIwADAdBgNVHSUEFjAUBggrBgEFBQcDAQYI\nKwYBBQUHAwIwSQYDVR0gBEIwQDA0BgsrBgEEAbIxAQICBzAlMCMGCCsGAQUFBwIB\nFhdodHRwczovL3NlY3RpZ28uY29tL0NQUzAIBgZngQwBAgEwgYQGCCsGAQUFBwEB\nBHgwdjBPBggrBgEFBQcwAoZDaHR0cDovL2NydC5zZWN0aWdvLmNvbS9TZWN0aWdv\nUlNBRG9tYWluVmFsaWRhdGlvblNlY3VyZVNlcnZlckNBLmNydDAjBggrBgEFBQcw\nAYYXaHR0cDovL29jc3Auc2VjdGlnby5jb20wMQYDVR0RBCowKIIQZ2FtZS1nYW1l\nLmNvbS5kZYIUd3d3LmdhbWUtZ2FtZS5jb20uZGUwggEDBgorBgEEAdZ5AgQCBIH0\nBIHxAO8AdgAHt1wb5X1o//Gwxh0jFce65ld8V5S3au68YToaadOiHAAAAXG8uVp5\nAAAEAwBHMEUCIQDTWMpU2uQ2qo2JvUGz+O554agJilFGDbGNDqDvbKU8kwIgcuIh\npbqROJjI65hLZVQMF1p0Knxl72vkC+hvbE3JMLoAdQDnEvKwN34aYvuOyQxhhPHq\nezfLVh0RJlvz4PNL8kFUbgAAAXG8uVqeAAAEAwBGMEQCIA8c62IMUfZY1f3DRl7p\nCPbcPLNH5tbQFKTzd4L5kDk+AiAX2l7OKlKOeGJnTsmRfIminJ7oEHUoKKVz4/iZ\nJZvNJjANBgkqhkiG9w0BAQsFAAOCAQEAEPYDpewOFiCsOvXMtH8qIayZaRABMtsN\n44BUbkk0UoYqxryXC45CVMln7sqQHfwc3U8dVMk0TMZoEcMyWqxA4CYkUS+psBWx\n3dsrk6oR/aInKpfcUe2j8p0cyXv9tYCdQO6pgI0JIaeFLoOKn6gP7XY08xLU8oM8\nU86GDE50dqM3d7FHGLrVjBhT6NBMI1EfW/4IlSjzUH00aRJksp1bEkZXMBNvK22Z\nmyJpCNayavTLtLDMrPuwOI4SX/JyQJZDzEGY9UeE9n8SjnDkRd0eEOKp5FrCNl6H\nkdffwmKD4UxBd4bo3Z+tNFtdFzl6bBiCkHbc/TIlJCBR8HZ5Pf72+A==\n-----END CERTIFICATE-----\n,-----BEGIN CERTIFICATE-----\nMIIGEzCCA/ugAwIBAgIQfVtRJrR2uhHbdBYLvFMNpzANBgkqhkiG9w0BAQwFADCB\niDELMAkGA1UEBhMCVVMxEzARBgNVBAgTCk5ldyBKZXJzZXkxFDASBgNVBAcTC0pl\ncnNleSBDaXR5MR4wHAYDVQQKExVUaGUgVVNFUlRSVVNUIE5ldHdvcmsxLjAsBgNV\nBAMTJVVTRVJUcnVzdCBSU0EgQ2VydGlmaWNhdGlvbiBBdXRob3JpdHkwHhcNMTgx\nMTAyMDAwMDAwWhcNMzAxMjMxMjM1OTU5WjCBjzELMAkGA1UEBhMCR0IxGzAZBgNV\nBAgTEkdyZWF0ZXIgTWFuY2hlc3RlcjEQMA4GA1UEBxMHU2FsZm9yZDEYMBYGA1UE\nChMPU2VjdGlnbyBMaW1pdGVkMTcwNQYDVQQDEy5TZWN0aWdvIFJTQSBEb21haW4g\nVmFsaWRhdGlvbiBTZWN1cmUgU2VydmVyIENBMIIBIjANBgkqhkiG9w0BAQEFAAOC\nAQ8AMIIBCgKCAQEA1nMz1tc8INAA0hdFuNY+B6I/x0HuMjDJsGz99J/LEpgPLT+N\nTQEMgg8Xf2Iu6bhIefsWg06t1zIlk7cHv7lQP6lMw0Aq6Tn/2YHKHxYyQdqAJrkj\neocgHuP/IJo8lURvh3UGkEC0MpMWCRAIIz7S3YcPb11RFGoKacVPAXJpz9OTTG0E\noKMbgn6xmrntxZ7FN3ifmgg0+1YuWMQJDgZkW7w33PGfKGioVrCSo1yfu4iYCBsk\nHaswha6vsC6eep3BwEIc4gLw6uBK0u+QDrTBQBbwb4VCSmT3pDCg/r8uoydajotY\nuK3DGReEY+1vVv2Dy2A0xHS+5p3b4eTlygxfFQIDAQABo4IBbjCCAWowHwYDVR0j\nBBgwFoAUU3m/WqorSs9UgOHYm8Cd8rIDZsswHQYDVR0OBBYEFI2MXsRUrYrhd+mb\n+ZsF4bgBjWHhMA4GA1UdDwEB/wQEAwIBhjASBgNVHRMBAf8ECDAGAQH/AgEAMB0G\nA1UdJQQWMBQGCCsGAQUFBwMBBggrBgEFBQcDAjAbBgNVHSAEFDASMAYGBFUdIAAw\nCAYGZ4EMAQIBMFAGA1UdHwRJMEcwRaBDoEGGP2h0dHA6Ly9jcmwudXNlcnRydXN0\nLmNvbS9VU0VSVHJ1c3RSU0FDZXJ0aWZpY2F0aW9uQXV0aG9yaXR5LmNybDB2Bggr\nBgEFBQcBAQRqMGgwPwYIKwYBBQUHMAKGM2h0dHA6Ly9jcnQudXNlcnRydXN0LmNv\nbS9VU0VSVHJ1c3RSU0FBZGRUcnVzdENBLmNydDAlBggrBgEFBQcwAYYZaHR0cDov\nL29jc3AudXNlcnRydXN0LmNvbTANBgkqhkiG9w0BAQwFAAOCAgEAMr9hvQ5Iw0/H\nukdN+Jx4GQHcEx2Ab/zDcLRSmjEzmldS+zGea6TvVKqJjUAXaPgREHzSyrHxVYbH\n7rM2kYb2OVG/Rr8PoLq0935JxCo2F57kaDl6r5ROVm+yezu/Coa9zcV3HAO4OLGi\nH19+24rcRki2aArPsrW04jTkZ6k4Zgle0rj8nSg6F0AnwnJOKf0hPHzPE/uWLMUx\nRP0T7dWbqWlod3zu4f+k+TY4CFM5ooQ0nBnzvg6s1SQ36yOoeNDT5++SR2RiOSLv\nxvcRviKFxmZEJCaOEDKNyJOuB56DPi/Z+fVGjmO+wea03KbNIaiGCpXZLoUmGv38\nsbZXQm2V0TP2ORQGgkE49Y9Y3IBbpNV9lXj9p5v//cWoaasm56ekBYdbqbe4oyAL\nl6lFhd2zi+WJN44pDfwGF/Y4QA5C5BIG+3vzxhFoYt/jmPQT2BVPi7Fp2RBgvGQq\n6jG35LWjOhSbJuMLe/0CjraZwTiXWTb2qHSihrZe68Zk6s+go/lunrotEbaGmAhY\nLcmsJWTyXnW0OMGuf1pGg+pRyrbxmRE1a6Vqe8YAsOf4vmSyrcjC8azjUeqkk+B5\nyOGBQMkKW+ESPMFgKuOXwIlCypTPRpgSabuY0MLTDXJLR27lk8QyKGOHQ+SwMj4K\n00u/I5sUKUErmgQfky3xxzlIPK1aEn8=\n-----END CERTIFICATE-----\n,-----BEGIN CERTIFICATE-----\nMIIFdzCCBF+gAwIBAgIQE+oocFv07O0MNmMJgGFDNjANBgkqhkiG9w0BAQwFADBv\nMQswCQYDVQQGEwJTRTEUMBIGA1UEChMLQWRkVHJ1c3QgQUIxJjAkBgNVBAsTHUFk\nZFRydXN0IEV4dGVybmFsIFRUUCBOZXR3b3JrMSIwIAYDVQQDExlBZGRUcnVzdCBF\neHRlcm5hbCBDQSBSb290MB4XDTAwMDUzMDEwNDgzOFoXDTIwMDUzMDEwNDgzOFow\ngYgxCzAJBgNVBAYTAlVTMRMwEQYDVQQIEwpOZXcgSmVyc2V5MRQwEgYDVQQHEwtK\nZXJzZXkgQ2l0eTEeMBwGA1UEChMVVGhlIFVTRVJUUlVTVCBOZXR3b3JrMS4wLAYD\nVQQDEyVVU0VSVHJ1c3QgUlNBIENlcnRpZmljYXRpb24gQXV0aG9yaXR5MIICIjAN\nBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAgBJlFzYOw9sIs9CsVw127c0n00yt\nUINh4qogTQktZAnczomfzD2p7PbPwdzx07HWezcoEStH2jnGvDoZtF+mvX2do2NC\ntnbyqTsrkfjib9DsFiCQCT7i6HTJGLSR1GJk23+jBvGIGGqQIjy8/hPwhxR79uQf\njtTkUcYRZ0YIUcuGFFQ/vDP+fmyc/xadGL1RjjWmp2bIcmfbIWax1Jt4A8BQOujM\n8Ny8nkz+rwWWNR9XWrf/zvk9tyy29lTdyOcSOk2uTIq3XJq0tyA9yn8iNK5+O2hm\nAUTnAU5GU5szYPeUvlM3kHND8zLDU+/bqv50TmnHa4xgk97Exwzf4TKuzJM7UXiV\nZ4vuPVb+DNBpDxsP8yUmazNt925H+nND5X4OpWaxKXwyhGNVicQNwZNUMBkTrNN9\nN6frXTpsNVzbQdcS2qlJC9/YgIoJk2KOtWbPJYjNhLixP6Q5D9kCnusSTJV882sF\nqV4Wg8y4Z+LoE53MW4LTTLPtW//e5XOsIzstAL81VXQJSdhJWBp/kjbmUZIO8yZ9\nHE0XvMnsQybQv0FfQKlERPSZ51eHnlAfV1SoPv10Yy+xUGUJ5lhCLkMaTLTwJUdZ\n+gQek9QmRkpQgbLevni3/GcV4clXhB4PY9bpYrrWX1Uu6lzGKAgEJTm4Diup8kyX\nHAc/DVL17e8vgg8CAwEAAaOB9DCB8TAfBgNVHSMEGDAWgBStvZh6NLQm9/rEJlTv\nA73gJMtUGjAdBgNVHQ4EFgQUU3m/WqorSs9UgOHYm8Cd8rIDZsswDgYDVR0PAQH/\nBAQDAgGGMA8GA1UdEwEB/wQFMAMBAf8wEQYDVR0gBAowCDAGBgRVHSAAMEQGA1Ud\nHwQ9MDswOaA3oDWGM2h0dHA6Ly9jcmwudXNlcnRydXN0LmNvbS9BZGRUcnVzdEV4\ndGVybmFsQ0FSb290LmNybDA1BggrBgEFBQcBAQQpMCcwJQYIKwYBBQUHMAGGGWh0\ndHA6Ly9vY3NwLnVzZXJ0cnVzdC5jb20wDQYJKoZIhvcNAQEMBQADggEBAJNl9jeD\nlQ9ew4IcH9Z35zyKwKoJ8OkLJvHgwmp1ocd5yblSYMgpEg7wrQPWCcR23+WmgZWn\nRtqCV6mVksW2jwMibDN3wXsyF24HzloUQToFJBv2FAY7qCUkDrvMKnXduXBBP3zQ\nYzYhBx9G/2CkkeFnvN4ffhkUyWNnkepnB2u0j4vAbkN9w6GAbLIevFOFfdyQoaS8\nLe9Gclc1Bb+7RrtubTeZtv8jkpHGbkD4jylW6l/VXxRTrPBPYer3IsynVgviuDQf\nJtl7GQVoP7o81DgGotPmjw7jtHFtQELFhLRAlSv0ZaBIefYdgWOWnU914Ph85I6p\n0fKtirOMxyHNwu8=\n-----END CERTIFICATE-----\n,-----BEGIN CERTIFICATE-----\nMIIENjCCAx6gAwIBAgIBATANBgkqhkiG9w0BAQUFADBvMQswCQYDVQQGEwJTRTEU\nMBIGA1UEChMLQWRkVHJ1c3QgQUIxJjAkBgNVBAsTHUFkZFRydXN0IEV4dGVybmFs\nIFRUUCBOZXR3b3JrMSIwIAYDVQQDExlBZGRUcnVzdCBFeHRlcm5hbCBDQSBSb290\nMB4XDTAwMDUzMDEwNDgzOFoXDTIwMDUzMDEwNDgzOFowbzELMAkGA1UEBhMCU0Ux\nFDASBgNVBAoTC0FkZFRydXN0IEFCMSYwJAYDVQQLEx1BZGRUcnVzdCBFeHRlcm5h\nbCBUVFAgTmV0d29yazEiMCAGA1UEAxMZQWRkVHJ1c3QgRXh0ZXJuYWwgQ0EgUm9v\ndDCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBALf3GjPm8gAELTngTlvt\nH7xsD821+iO2zt6bETOXpClMfZOfvUq8k+0DGuOPz+VtUFrWlymUWoCwSXrbLpX9\nuMq/NzgtHj6RQa1wVsfwTz/oMp50ysiQVOnGXw94nZpAPA6sYapeFI+eh6FqUNzX\nmk6vBbOmcZSccbNQYArHE504B4YCqOmoaSYYkKtMsE8jqzpPhNjfzp/haW+710LX\na0Tkx63ubUFfclpxCDezeWWkWaCUN/cALw3CknLa0Dhy2xSoRcRdKn23tNbE7qzN\nE0S3ySvdQwAl+mG5aWpYIxG3pzOPVnVZ9c0p10a3CitlttNCbxWyuHv77+ldU9U0\nWicCAwEAAaOB3DCB2TAdBgNVHQ4EFgQUrb2YejS0Jvf6xCZU7wO94CTLVBowCwYD\nVR0PBAQDAgEGMA8GA1UdEwEB/wQFMAMBAf8wgZkGA1UdIwSBkTCBjoAUrb2YejS0\nJvf6xCZU7wO94CTLVBqhc6RxMG8xCzAJBgNVBAYTAlNFMRQwEgYDVQQKEwtBZGRU\ncnVzdCBBQjEmMCQGA1UECxMdQWRkVHJ1c3QgRXh0ZXJuYWwgVFRQIE5ldHdvcmsx\nIjAgBgNVBAMTGUFkZFRydXN0IEV4dGVybmFsIENBIFJvb3SCAQEwDQYJKoZIhvcN\nAQEFBQADggEBALCb4IUlwtYj4g+WBpKdQZic2YR5gdkeWxQHIzZlj7DYd7usQWxH\nYINRsPkyPef89iYTx4AWpb9a/IfPeHmJIZriTAcKhjW88t5RxNKWt9x+Tu5w/Rw5\n6wwCURQtjr0W4MHfRnXnJK3s9EK0hZNwEGe6nQY1ShjTK3rMUUKhemPR5ruhxSvC\nNr4TDea9Y355e6cJDUCrat2PisP29owaQgVR1EX1n6diIWgVIEM8med8vSTYqZEX\nc4g/VhsxOBi0cQ+azcgOno4uG+GMmIPLHzHxREzGBHNJdmAPx/i9F4BrLunMTA5a\nmnkPIAou1Z5jJh5VkpTYghdae9C8x49OhgQ=\n-----END CERTIFICATE-----\n"],
+  "SSL Cipher Bits":["None","None","None","None","None","None","None","256"],"SSL Cipher Name":["None","None","None","None","None","None","None","ECDHE-RSA-AES256-GCM-SHA384"],"SSL Cipher Version":["None","None","None","None","None","None","None","TLSv1/SSLv3"],"SSL TLS Extension":["None","None","None","None","None","None","None","[object Object],[object Object],[object Object],[object Object]"],"SSL Versions":["None","None","None","None","None","None","None","TLSv1,-SSLv2,-SSLv3,TLSv1.1,TLSv1.2,-TLSv1.3"],"Vulnerability Details":["","","","","",";CVE-2014-1692;3.5;http://rhn.redhat.com/errata/RHSA-2012-0884.html,http://seclists.org/fulldisclosure/2011/Aug/2,http://site.pi3.com.pl/adv/ssh_1.txt;The ssh_gssapi_parse_ename function in gss-serv.c in OpenSSH 5.8 and earlier, when gssapi-with-mic authentication is enabled, allows remote authenticated users to cause a denial of service (memory consumption) via a large value in a certain length field. NOTE: there may be limited scenarios in which this issue is relevant.;false;CVE-2014-1692;5.0;http://www.securityfocus.com/bid/101552,https://access.redhat.com/errata/RHSA-2018:0980,https://github.com/openbsd/src/commit/a6981567e8e215acc1ef690c8dbb30f2d9b00a19,https://lists.debian.org/debian-lts-announce/2018/09/msg00010.html,https://security.gentoo.org/glsa/201801-05,https://security.netapp.com/advisory/ntap-20180423-0004/,https://www.openssh.com/txt/release-7.6;The process_open function in sftp-server.c in OpenSSH before 7.6 does not properly prevent write operations in readonly mode, which allows attackers to create zero-length files.;false;CVE-2014-1692;7.5;http://marc.info/?l=bugtraq&m=141576985122836&w=2,http://marc.info/?l=bugtraq&m=144050155601375&w=2,http://openwall.com/lists/oss-security/2014/01/29/10,http://openwall.com/lists/oss-security/2014/01/29/2,http://secunia.com/advisories/60184,http://www-01.ibm.com/support/docview.wss?uid=isg3T1020637,http://www.openbsd.org/cgi-bin/cvsweb/src/usr.bin/ssh/Attic/schnorr.c.diff?r1=1.9;r2=1.10;f=h,http://www.openbsd.org/cgi-bin/cvsweb/src/usr.bin/ssh/schnorr.c#rev1.10,http://www.securityfocus.com/bid/65230,https://exchange.xforce.ibmcloud.com/vulnerabilities/90819;The hash_buffer function in schnorr.c in OpenSSH through 6.4, when Makefile.inc is modified to enable the J-PAKE protocol, does not initialize certain data structures, which might allow remote attackers to cause a denial of service (memory corruption) or have unspecified other impact via vectors that trigger an error condition.;false;CVE-2014-1692;5;http://marc.info/?l=bugtraq&m=144050155601375&w=2,http://rhn.redhat.com/errata/RHSA-2013-1591.html,http://www.openbsd.org/cgi-bin/cvsweb/src/usr.bin/ssh/servconf.c?r1=1.234#rev1.234,http://www.openbsd.org/cgi-bin/cvsweb/src/usr.bin/ssh/sshd_config.5?r1=1.156#rev1.156,http://www.openbsd.org/cgi-bin/cvsweb/src/usr.bin/ssh/sshd_config?r1=1.89#rev1.89,http://www.openwall.com/lists/oss-security/2013/02/07/3,http://www.oracle.com/technetwork/topics/security/cpujan2015-1972971.html,http://www.oracle.com/technetwork/topics/security/linuxbulletinjan2016-2867209.html,http://www.securityfocus.com/bid/58162,https://bugzilla.redhat.com/show_bug.cgi?id=908707;The default configuration of OpenSSH through 6.1 enforces a fixed time limit between establishing a TCP connection and completing a login, which makes it easier for remote attackers to cause a denial of service (connection-slot exhaustion) by periodically making many new TCP connections.;false;CVE-2014-1692;5.0;http://blog.swiecki.net/2018/01/fuzzing-tcp-servers.html,http://www.securityfocus.com/bid/102780,https://anongit.mindrot.org/openssh.git/commit/?id=28652bca29046f62c7045e933e6b931de1d16737,https://kc.mcafee.com/corporate/index?page=content&id=SB10284,https://lists.debian.org/debian-lts-announce/2018/01/msg00031.html,https://lists.debian.org/debian-lts-announce/2018/09/msg00010.html,https://security.netapp.com/advisory/ntap-20180423-0003/,https://usn.ubuntu.com/3809-1/,https://www.openssh.com/releasenotes.html;sshd in OpenSSH before 7.4 allows remote attackers to cause a denial of service (NULL pointer dereference and daemon crash) via an out-of-sequence NEWKEYS message, as demonstrated by Honggfuzz, related to kex.c and packet.c.;false;CVE-2014-1692;7.5;http://kb.juniper.net/InfoCenter/index?page=content&id=JSA10673,http://seb.dbzteam.org/crypto/jpake-session-key-retrieval.pdf,http://www.openbsd.org/cgi-bin/cvsweb/src/usr.bin/ssh/jpake.c#rev1.5,http://www.openbsd.org/cgi-bin/cvsweb/src/usr.bin/ssh/jpake.c.diff?r1=1.4;r2=1.5;f=h,https://bugzilla.redhat.com/show_bug.cgi?id=659297,https://github.com/seb-m/jpake;OpenSSH 5.6 and earlier, when J-PAKE is enabled, does not properly validate the public parameters in the J-PAKE protocol, which allows remote attackers to bypass the need for knowledge of the shared secret, and successfully authenticate, by sending crafted values in " + 
+  "each round of the protocol, a related issue to CVE-2010-4252.;false;CVE-2014-1692;4.0;http://kb.juniper.net/InfoCenter/index?page=content&id=JSA10734,http://lists.apple.com/archives/security-announce/2016/Mar/msg00004.html,http://lists.fedoraproject.org/pipermail/package-announce/2016-February/176516.html,http://lists.fedoraproject.org/pipermail/package-announce/2016-January/175592.html,http://lists.fedoraproject.org/pipermail/package-announce/2016-January/175676.html,http://lists.fedoraproject.org/pipermail/package-announce/2016-January/176349.html,http://lists.opensuse.org/opensuse-security-announce/2016-01/msg00006.html,http://lists.opensuse.org/opensuse-security-announce/2016-01/msg00007.html,http://lists.opensuse.org/opensuse-security-announce/2016-01/msg00008.html,http://lists.opensuse.org/opensuse-security-announce/2016-01/msg00009.html,http://lists.opensuse.org/opensuse-security-announce/2016-01/msg00013.html,http://lists.opensuse.org/opensuse-security-announce/2016-01/msg00014.html,http://packetstormsecurity.com/files/135273/Qualys-Security-Advisory-OpenSSH-Overflow-Leak.html,http://seclists.org/fulldisclosure/2016/Jan/44,http://www.debian.org/security/2016/dsa-3446,http://www.openssh.com/txt/release-7.1p2,http://www.openwall.com/lists/oss-security/2016/01/14/7,http://www.oracle.com/technetwork/topics/security/bulletinoct2015-2511968.html,http://www.oracle.com/technetwork/topics/security/linuxbulletinjan2016-2867209.html,http://www.securityfocus.com/archive/1/537295/100/0/threaded,http://www.securityfocus.com/bid/80695,http://www.securitytracker.com/id/1034671,http://www.ubuntu.com/usn/USN-2869-1,https://blogs.sophos.com/2016/02/17/utm-up2date-9-354-released/,https://blogs.sophos.com/2016/02/29/utm-up2date-9-319-released/,https://bto.bluecoat.com/security-advisory/sa109,https://h20566.www2.hpe.com/portal/site/hpsc/public/kb/docDisplay?docId=emr_na-c05247375,https://h20566.www2.hpe.com/portal/site/hpsc/public/kb/docDisplay?docId=emr_na-c05356388,https://h20566.www2.hpe.com/portal/site/hpsc/public/kb/docDisplay?docId=emr_na-c05385680,https://h20566.www2.hpe.com/portal/site/hpsc/public/kb/docDisplay?docId=emr_na-c05390722,https://security.FreeBSD.org/advisories/FreeBSD-SA-16:07.openssh.asc,https://security.gentoo.org/glsa/201601-01,https://support.apple.com/HT206167;The resend_bytes function in roaming_common.c in the client in OpenSSH 5.x, 6.x, and 7.x before 7.1p2 allows remote servers to obtain sensitive information from process memory by requesting transmission of an entire buffer, as demonstrated by reading a private key.;false;CVE-2014-1692;2.1;http://www.openssh.com/txt/portable-keysign-rand-helper.adv,https://bugzilla.redhat.com/show_bug.cgi?id=755640;ssh-keysign.c in ssh-keysign in OpenSSH before 5.8p2 on certain platforms executes ssh-rand-helper with unintended open file descriptors, which allows local users to obtain sensitive key information via the ptrace system call.;false;CVE-2014-1692;4;http://cvsweb.netbsd.org/cgi-bin/cvsweb.cgi/src/crypto/dist/ssh/Attic/sftp-glob.c#rev1.13.12.1,http://cvsweb.netbsd.org/cgi-bin/cvsweb.cgi/src/crypto/dist/ssh/Attic/sftp.c#rev1.21.6.1,http://cxib.net/stuff/glob-0day.c,http://ftp.netbsd.org/pub/NetBSD/security/advisories/NetBSD-SA2010-008.txt.asc,http://securityreason.com/achievement_securityalert/89,http://securityreason.com/exploitalert/9223,http://securityreason.com/securityalert/8116;The (1) remote_glob function in sftp-glob.c and the (2) process_put function in sftp.c in OpenSSH 5.8 and earlier, as used in FreeBSD 7.3 and 8.1, NetBSD 5.0.2, OpenBSD 4.7, and other products, allow remote authenticated users to cause a denial of service (CPU and memory consumption) via crafted glob expressions that do not match any pathnames, as demonstrated by glob expressions in SSH_FXP_STAT requests to an sftp daemon, a different vulnerability than CVE-2010-2632.;false;CVE-2014-1692;3.5;http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=657445,http://kb.juniper.net/InfoCenter/index?page=content&id=JSA10673,http://openwall.com/lists/oss-security/2012/01/26/15,http://openwall.com/lists/oss-security/2012/01/26/16,http://openwall.com/lists/oss-security/2012/01/27/1,http://openwall.com/lists/oss-security/2012/01/27/4,http://www.openbsd.org/cgi-bin/cvsweb/src/usr.bin/ssh/auth-options.c,http://www.openbsd.org/cgi-bin/cvsweb/src/usr.bin/ssh/auth-options.c.diff?r1=1.53;r2=1.54,http://www.securityfocus.com/bid/51702,https://exchange.xforce.ibmcloud.com/vulnerabilities/72756;The auth_parse_options function in auth-options.c in sshd in OpenSSH before 5.7 provides debug messages containing authorized_keys command options, which allows remote authenticated users to obtain potentially sensitive information by reading these messages, as demonstrated by the shared user account required by Gitolite. NOTE: this can cross privilege boundaries because a user account may intentionally have no shell or filesystem access, and therefore may have no supported way to read an authorized_keys file in its own home directory.;false","",""],"No. Cve":["0","0","0","0","10","10","10","10"],"Highest CVSS":["0","0","0","0","0","7.5","0","0"],
+  "Corresponding CVE":["None","None","None","None","None","CVE-2014-1692","None","None"]}
+}
+async function shodanFunc(pendingToScan){
+  shodanData = {'Host':[], 'Retrieve Time':[], 'Timestamp':[], 'Port':[],
+    'Protocol':[],'Organization':[],'Operating System':[],'Service':[],
+    'Common Platform Enumeration ("CPE")':[],'Website Title':[],
+    'Service Version':[],'HTTP Redirect':[],
+    'SSL Acceptable Certification Authorities':[],
+    'SSL ALPN ("Application-Layer Protocol Negotiation")':[],'SSL Cert Expired':[],
+    'SSL Cert Expiration Date':[],'sSSL Cert Extensions':[],
+    'SSL Cert Fingerprint in SHA1':[], 'SSL Cert Fingerprint in SHA256':[],
+    'SSL Cert Issued On':[],'SSL Cert Issuer Country Name':[],
+    'SSL Cert Issuer Common Name':[],'SSL Cert Issuer Locality':[],
+    'SSL Cert Issuer Organization':[],'SSL Cert Issuer Organizational Unit':[],
+    'SSL Cert Issuer State or Province Name':[],'SSL Cert Public Key Bits':[],
+    'SSL Cert Public Key Type':[],'SSL Cert Serial':[],
+    'SSL Cert Signature Algorithm':[],'SSL Cert Subject Common Name':[],
+    'SSL Cert Subject Organizational Unit':[],'SSL Cert Version':[],
+    'SSL Chain':[],'SSL Cipher Bits':[],'SSL Cipher Name':[],'SSL Cipher Version':[],
+    'SSL TLS Extension':[],'SSL Versions':[],'Vulnerability Details':[],
+    'No. Cve':[],'Highest CVSS':[],'Corresponding CVE':[]
+  };
+  for (i = 0; i < pendingToScan.length; i++){
+    console.log("OutS13: Working on ip [" + i + "] IP: " + pendingToScan[i]);
+    await shodanFunc2(pendingToScan[i], shodanData);
+    console.log(shodanData);
+  }
+  return shodanData;
+}
+async function shodanFunc2(ip, shodanData_){
+  const shodanAPIKey = "RifB5RHIyi80O3BZsz3V8yUHEupjRu1T";
+  var host = {};
+  host = await shodanFunc3(ip, shodanAPIKey);
+  if (host === "No Info"){
+    return;
+  }
+  shodanFunc4(host, shodanData_);
+}
+function shodanFunc3(ip, shodanAPIKey){
+  return new Promise((resolve) => {
+      shodanClient
+      .host(ip, shodanAPIKey, history=false)
+      .then(res => {
+        resolve(res);
+      })
+      .catch(err => resolve("No Info"));
+  })
+}
+function shodanFunc4(host, shodanData_){
+  data = host.data;
+  Object.entries(data).forEach(([key, instance]) => {
+    nowDate = new Date();
+    date = nowDate.getFullYear() + '-' + (nowDate.getMonth() + 1) + '-' + nowDate.getDate();
+    time = nowDate.getHours() + ":" + nowDate.getMinutes() + ":" + nowDate.getSeconds();
+
+    timestamp = get(instance, 'timestamp', 'None');
+    curtime = date + 'T' + time;
+    ip_str = get(instance, 'ip_str', 'None');
+    product = get(instance, 'product', 'None');
+    shodanmodule = get(get(instance, '_shodan', ''), 'module', 'None').toString();
+    shodanmodule_os = get(get(instance, shodanmodule, ''), 'os', 'None');
+    org = get(host, 'org', 'None')
+    cpe = get(instance, 'cpe','None')
+    vulns = get(host, 'vulns','None')
+    vulnscount= 0;
+
+    if (typeof vulns == 'object'){
+      vulnscount = vulns.length;
+    }
+    portvulns_all = "";
+    nocve = vulnscount;
+    dictcorr = {"None":0};
+    cvss = 0;
+
+    for (j = 0; j < vulns.length; j++){
+      try{
+      vuln_str = vulns[i].toString();
+      cvss_str = instance['vulns'][vulns[j]]['cvss'].toString();
+      reference_str = instance['vulns'][vulns[j]]['references'].toString();
+      summary_str = instance['vulns'][vulns[j]]['summary'].toString();
+      verified_str = instance['vulns'][vulns[j]]['verified'].toString();
+      
+      portvulns = vuln_str + ";" + cvss_str + ";" + reference_str + ";" + summary_str + ";" + verified_str;
+      dictcorr[vulns[j]] = parseFloat(instance['vulns'][vulns[j]]['cvss']);
+      portvulns_all = portvulns_all + ";" + portvulns;
+      }
+      catch(err){}
+    }
+    cvss = max(dictcorr, "getValue");
+    corrkey = max(dictcorr, "getKey");
+    http = get(instance, 'http','None');
+    http_server = get(http, 'server','None');
+    http_redirects = get(http, 'redirects','None');
+    if (typeof http_redirects == 'object' && Object.keys(http_redirects).length != 0){
+      http_redirects = JSON.stringify(http_redirects).slice(0, 1024);
+    }
+    else http_redirects = 'None';
+    ssl = get(instance, 'ssl','None');
+    sslcert = get(ssl, 'cert','None');
+    sslcertfingerprint = get(sslcert, 'fingerprint','None');
+    sslcertissuer = get(sslcert, 'issuer','None');
+    sslcert_pubkey = get(sslcert, 'pubkey','None');
+    sslcipher = get(ssl, 'cipher','None');
+    sslcertsubject = get(sslcert, 'subject','None');
+    ssl_acceptable_cas = get(ssl, 'acceptable_cas','None').toString();
+    if (typeof ssl_acceptable_cas == 'object' && Object.keys(ssl_acceptable_cas).length != 0){
+      ssl_acceptable_cas = ssl_acceptable_cas.slice(0, 512);
+    }
+    else ssl_acceptable_cas = 'None';
+    ssl_alpn = get(ssl, 'alpn','None');
+    sslcert_expired = get(sslcert, 'expired','None');
+    sslcert_expires = get(sslcert, 'expires','None');
+    sslcert_extensions = get(sslcert, 'extensions','None');
+    sslcertfingerprint_sha1 = get(sslcertfingerprint, 'sha1','None');
+    sslcertfingerprint_sha256 = get(sslcertfingerprint, 'sha256','None');
+    sslcert_issued = get(sslcert, 'issued','None');
+    sslcertissuer_C = get(sslcertissuer, 'C','None');
+    sslcertissuer_CN = get(sslcertissuer, 'CN','None');
+    sslcertissuer_L = get(sslcertissuer, 'L','None');
+    sslcertissuer_O = get(sslcertissuer, 'O','None');
+    sslcertissuer_OU = get(sslcertissuer, 'OU','None');
+    sslcertissuer_ST = get(sslcertissuer, 'ST','None');
+    sslcert_pubkeybits = get(sslcert_pubkey, 'bits','None');
+    sslcert_pubkeytype = get(sslcert_pubkey, 'type','None');
+    sslcert_serial = get(sslcert, 'serial','None');
+    sslcert_sig_alg = get(sslcert, 'sig_alg','None');
+    sslcertsubject_CN = get(sslcertsubject, 'CN','None');
+    sslcertsubject_OU = get(sslcertsubject, 'OU','None');
+    sslcert_version = get(sslcert, 'version','None');
+    ssl_chain = get(ssl, 'chain','None');
+    sslcipher_bits = get(sslcipher, 'bits','None');
+    sslcipher_name = get(sslcipher, 'name','None');
+    sslcipher_version = get(sslcipher, 'version','None');
+    ssl_tlsext = get(ssl, 'tlsext','None');
+    ssl_versions = get(ssl, 'versions','None');
+
+    try{ ssl_acceptable_cas = ssl_acceptable_cas.toString();}
+    catch(err){ssl_acceptable_cas = 'None';}
+
+    try{ssl_alpn = ssl_alpn.toString();}
+    catch(err){ssl_alpn = 'None';}
+
+    try{sslcert_expired = sslcert_expired.toString();}
+    catch(err){sslcert_expired = 'None';}
+
+    try{sslcert_expires = sslcert_expires.toString();}
+    catch(err){sslcert_expires = 'None';}
+
+    try{sslcert_extensions = sslcert_extensions.toString();}
+    catch(err){sslcert_extensions = 'None';}
+
+    try{sslcertfingerprint_sha1 = sslcertfingerprint_sha1.toString();}
+    catch(err){sslcertfingerprint_sha1 = 'None';}
+
+    try{sslcertfingerprint_sha256 = sslcertfingerprint_sha256.toString();}
+    catch(err){sslcertfingerprint_sha256 = 'None';}
+
+    try{sslcert_issued = sslcert_issued.toString();}
+    catch(err){sslcert_issued = 'None';}
+
+    try{sslcertissuer_C = sslcertissuer_C.toString();}
+    catch(err){sslcertissuer_C = 'None';}
+
+    try{sslcertissuer_CN = sslcertissuer_CN.toString();}
+    catch(err){sslcertissuer_CN = 'None';}
+
+    try{sslcertissuer_L = sslcertissuer_L.toString();}
+    catch(err){sslcertissuer_L = 'None';}
+
+    try{sslcertissuer_O = sslcertissuer_O.toString();}
+    catch(err){sslcertissuer_O = 'None';}
+
+    try{sslcertissuer_OU = sslcertissuer_OU.toString();}
+    catch(err){sslcertissuer_OU = 'None';}
+
+    try{sslcertissuer_ST = sslcertissuer_ST.toString();}
+    catch(err){sslcertissuer_ST = 'None';}
+
+    try{sslcert_pubkeybits = sslcert_pubkeybits.toString();}
+    catch(err){sslcert_pubkeybits = 'None';}
+
+    try{sslcert_pubkeytype = sslcert_pubkeytype.toString();}
+    catch(err){sslcert_pubkeytype = 'None';}
+
+    try{sslcert_serial = sslcert_serial.toString();}
+    catch(err){sslcert_serial = 'None';}
+
+    try{sslcert_sig_alg = sslcert_sig_alg.toString();}
+    catch(err){sslcert_sig_alg = 'None';}
+
+    try{sslcertsubject_CN = sslcertsubject_CN.toString();}
+    catch(err){sslcertsubject_CN = 'None';}
+
+    try{sslcertsubject_OU = sslcertsubject_OU.toString();}
+    catch(err){sslcertsubject_OU = 'None';}
+
+    try{sslcert_version = sslcert_version.toString();}
+    catch(err){sslcert_version = 'None';}
+
+    try{ssl_chain = ssl_chain.toString();}
+    catch(err){ssl_chain = 'None';}
+    try{sslcipher_bits = sslcipher_bits.toString();}
+    catch(err){sslcipher_bits = 'None';}
+
+    try{sslcipher_name = sslcipher_name.toString();}
+    catch(err){sslcipher_name = 'None';}
+
+    try{sslcipher_version = sslcipher_version.toString();}
+    catch(err){sslcipher_version = 'None';}
+
+    try{ssl_tlsext = ssl_tlsext.toString();}
+    catch(err){ssl_tlsext = 'None';}
+
+    ssl_all = ssl_acceptable_cas + "\t" + ssl_alpn + "\t" + sslcert_expired + "\t" + sslcert_expires + "\t" + 
+      sslcert_extensions + "\t" + sslcertfingerprint_sha1 + "\t" + sslcertfingerprint_sha256 + "\t" + 
+      sslcert_issued + "\t" + sslcertissuer_C + "\t" + sslcertissuer_CN + "\t" + 
+      sslcertissuer_L + "\t" + sslcertissuer_O + "\t" + sslcertissuer_OU + "\t" + sslcertissuer_ST + "\t" + 
+      sslcert_pubkeybits + "\t" + sslcert_pubkeytype + "\t" + sslcert_serial + "\t" + sslcert_sig_alg + "\t" + 
+      sslcertsubject_CN + "\t" + sslcertsubject_OU + "\t" + sslcert_version + "\t" + ssl_chain + "\t" + 
+      sslcipher_bits + "\t" + sslcipher_name + "\t" + sslcipher_version + "\t" + ssl_tlsext + "\t" + ssl_versions;
+    
+
+    http_title = get(http, 'title','None');
+    try{http_title = http_title.toString();}
+    catch(err){ http_title = 'None';}
+
+    try{ip_str = ip_str.toString();}
+    catch(err){ ip_str = 'None';}
+
+    try{curtime = curtime.toString();}
+    catch(err){curtime = 'None';}
+
+    try{timestamp = timestamp.toString();}
+    catch(err){timestamp = 'None';}
+
+    try{org = org.toString();}
+    catch(err){org = 'None';}
+
+    try{shodanmodule_os = shodanmodule_os.toString();}
+    catch(err){shodanmodule_os = 'None';}
+
+    try{product = product.toString();}
+    catch(err){product = 'None';}
+
+    try{cpe = cpe.toString();}
+    catch(err){cpe = 'None';}
+
+    try{http_server = http_server.toString();}
+    catch(err){http_server = 'None';}
+
+    try{http_redirects = http_redirects.toString();}
+    catch(err){http_redirects = 'None';}
+
+    try{ssl_all = ssl_all.toString();}
+    catch(err){ssl_all = 'None';}
+
+    try{portvulns_all = portvulns_all.toString();}
+    catch(err){portvulns_all = 'None';}
+
+    try{nocve = nocve.toString();}
+    catch(err){nocve = 'None';}
+
+    try{cvss = cvss.toString();}
+    catch(err){cvss = 'None';}
+
+    try{corrkey = corrkey.toString();}
+    catch(err){corrkey = 'None';}
+
+    str_all = ip_str + "\t" + curtime + "\t" + timestamp + "\t" + instance['port'].toString() + "\t" + 
+      instance['_shodan']['module'].toString() + "\t" + org + "\t" + shodanmodule_os + "\t" + 
+      product + "\t" + cpe + "\t" + http_title + "\t" + http_server + "\t" + http_redirects + 
+      "\t" + ssl_all + "\t" + portvulns_all + "\t" + nocve + "\t" + cvss + "\t" + corrkey;
+    str_all = str_all.replace('\r\n','');
+    str_all = str_all.replace('\r','');
+    str_all = str_all.replace('\n','');
+
+    var shodanKeys = Object.keys(shodanData_);
+    row = str_all.split('\t');
+    console.log("OK");
+    console.log(row);
+    for (j = 0; j < row.length; j++){
+      shodanData_[shodanKeys[j]].push(row[j]);
+    }
+  });
+}
+function get(object, key, default_value) {
+  var result = object[key];
+  return (typeof result !== "undefined") ? result : default_value;
+}
+function max(dictcorr, getWhat){
+  var keys = Object.keys(dictcorr);
+  maxVal = dictcorr[keys[0]];
+  maxKey = keys[0];
+  for (j = 1; j < keys.length; j++) {
+    var value = dictcorr[keys[j]];
+    if (value > maxVal){
+      maxVal = value;
+      maxKey = keys[j];
+    }
+  }
+  if (getWhat == "getValue"){return maxVal;}
+  else return maxKey;
+}
+function getResultShodanData(shodanData){
+  resultShodanData = {'Host':[],	'Port':[],	'Website Title':[],'No. Cve':[],	'Highest CVSS':[],	'Corresponding CVE':[]};
+  for (i = 0; i < shodanData['Host'].length; i++){
+    if (shodanData['No. Cve'][i] > 0){
+      resultShodanData['Host'].push(shodanData['Host'][i]);
+      resultShodanData['Port'].push(shodanData['Port'][i]);
+      resultShodanData['Website Title'].push(shodanData['Website Title'][i]);
+      resultShodanData['No. Cve'].push(shodanData['No. Cve'][i]);
+      resultShodanData['Highest CVSS'].push(shodanData['Highest CVSS'][i]);
+      resultShodanData['Corresponding CVE'].push(shodanData['Corresponding CVE'][i]);
+    }
+  }
+  return resultShodanData;
+}
