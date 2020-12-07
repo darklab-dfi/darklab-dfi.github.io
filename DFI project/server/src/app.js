@@ -36,12 +36,7 @@ const zoomRequest = require('request-promise-native');
 const dns = require('dns');
 const IPinfo = require("node-ipinfo");
 const dmarc = require('dmarc-solution');
-
-app.post('/register', (req, res)=> {
-    res.send({
-        message: `Hello ${req.body.email}! Your user was registered!`
-    })
-})
+const captureWebsite = require('capture-website');
 
 app.post('/output', async (req, res)=> {
     console.log("########Program Started########")
@@ -58,24 +53,40 @@ app.post('/output', async (req, res)=> {
     subdomainData = outS11groupData(subdomainData, NS_MX_A_recordData);
     subdomainData = outS11RemoveNoInfo(subdomainData);*/
     var subdomainData = getTempOutS11();
-    var t_subdomainData = tokenizeOutput(subdomainData);
+    const t_subdomainData = tokenizeOutput(subdomainData);
     const outS11 = JSON.parse(JSON.stringify(t_subdomainData));
 
     var dataLogin = getOutS12(t_subdomainData);
     const outS12 = JSON.parse(JSON.stringify(dataLogin));
 
-    const pendingToScan = Array.from(new Set(subdomainData['IP']));
-    const shodanData = await shodanFunc(pendingToScan);
+    /*const pendingToScan = Array.from(new Set(subdomainData['IP']));
+    console.log("Length: " + pendingToScan.length);
+    const shodanData = await shodanFunc(pendingToScan.slice(0,100));*/
+    var shodanData = getTempOutS13Data();
     const t_shodanData = tokenizeOutput(shodanData);
     const outS13 = JSON.parse(JSON.stringify(t_shodanData));
-    //var resultShodanData = getResultShodanData(shodanData);
-    //var shodanData = getTempOutS13Data();
+    var resultShodanData = getResultShodanData(shodanData);
+
+    shodanData = shodanFilterForOutS14(shodanData);
+    shodanData = await shodanGetHostNameForOutS14(shodanData);//to be changed back
+    var shodanData2 = getShodanData2(shodanData);
+    const t_shodanData2 = tokenizeOutput(shodanData2);
+    const outS14 = JSON.parse(JSON.stringify(t_shodanData2));
+
+    var result = getTempOutS15Data();
+    //var result = subdomainData;
+    //result = await updateResultForOutS15(result);//to be revised and confirmed
+    var detectedData = getDetectedData(result);
+    const t_detectedData = tokenizeOutput(detectedData);
+    const outS15 = JSON.parse(JSON.stringify(t_detectedData));
 
     res.send({
         outS11: outS11,
         outS12: outS12,
         outS13: outS13,
-        temp: JSON.stringify(outS13)
+        outS14: outS14,
+        outS15: outS15,
+        temp: JSON.stringify(result)
     })
 })
 
@@ -83,7 +94,7 @@ app.listen(process.env.PORT || 8081)
 
 const delay = ms => new Promise(res => setTimeout(res, ms));
 
-/**Functions for outS11 */
+/**Functions for outS11**/
 async function getSubdomains(searchDomain){
     console.log("OutS11: Getting subdomain data (1/2)");
     var url ='https://api.securitytrails.com/v1/domain/' + searchDomain + '/subdomains';
@@ -382,7 +393,7 @@ async function getSubdomains(searchDomain){
     }
     return outputTokenize;
   }
-/**Functions for outS12 */
+/**Functions for outS12**/
 function getOutS12(data){
   console.log("OutS12: Working on filtering data which contain non-production entry point keyword")
   const nonProdEntryPointList = ['dev','uat','qa','test','stag','temp','tmp'];
@@ -405,7 +416,7 @@ function getOutS12(data){
   }
   return dataLogin;
 }
-/**Functions for outS13 */
+/**Functions for outS13**/
 function getTempOutS13Data(){
   return {"Host":["173.245.58.231","173.245.58.231","108.162.195.239","108.162.195.239","144.76.47.198","144.76.47.198","144.76.47.198","144.76.47.198"],"Retrieve Time":["2020-11-26T14:23:47","2020-11-26T14:23:47","2020-11-26T14:23:48","2020-11-26T14:23:48","2020-11-26T14:23:48","2020-11-26T14:23:48","2020-11-26T14:23:48","2020-11-26T14:23:48"],"Timestamp":["2020-11-22T07:07:44.775060","2020-11-19T12:24:01.618524","2020-11-22T04:36:53.404203","2020-11-21T10:19:34.196723","2020-11-19T06:27:55.666323","2020-11-17T06:47:01.273848","2020-11-17T03:48:30.573740","2020-11-17T03:18:26.158204"],"Port":["53","53","53","53","123","22","80","443"],"Protocol":["dns-udp","dns-tcp","dns-udp","dns-tcp","ntp","ssh","http","https"],"Organization":["Cloudflare","Cloudflare","Cloudflare","Cloudflare","Hetzner Online GmbH","Hetzner Online GmbH","Hetzner Online GmbH","Hetzner Online GmbH"],"Operating System":["None","None","None","None","None","None","None","None"],"Service":["None","None","None","None","None","OpenSSH","nginx","nginx"],"Common Platform Enumeration (\"CPE\")":["None","None","None","None","None","cpe:/a:openbsd:openssh:5.3","cpe:/a:jquery:jquery,cpe:/a:getbootstrap:bootstrap,cpe:/a:igor_sysoev:nginx","cpe:/a:igor_sysoev:nginx"],"Website Title":["None","None","None","None","None","None","Online Games. Play for free","None"],"Service Version":["None","None","None","None","None","None","nginx","nginx"],"HTTP Redirect":["None","None","None","None","None","None","[{\"host\":\"144.76.47.198\",\"data\":\"HTTP/1.1 302 Found\\r\\nServer: nginx\\r\\nDate: Tue, 17 Nov 2020 03:48:28 GMT\\r\\nContent-Type: text/html; charset=utf-8\\r\\nContent-Length: 0\\r\\nConnection: keep-alive\\r\\nLocation: http://game-game.com/404.php\\r\\n\\r\\n\",\"location\":\"/\"},{\"host\":\"game-game.com\",\"data\":\"HTTP/1.1 301 Moved Permanently\\r\\nServer: nginx\\r\\nDate: Tue, 17 Nov 2020 03:48:29 GMT\\r\\nContent-Type: text/html; charset=utf-8\\r\\nContent-Length: 0\\r\\nConnection: keep-alive\\r\\nLocation: /404.php/\\r\\n\\r\\n\",\"location\":\"/404.php\"}]","None"],"SSL Acceptable Certification Authorities":["None","None","None","None","None","None","None","None"],"SSL ALPN (\"Application-Layer Protocol Negotiation\")":["None","None","None","None","None","None","None","http/1.1"],"SSL Cert Expired":["None","None","None","None","None","None","None","true"],"SSL Cert Expiration Date":["None","None","None","None","None","None","None","20200726235959Z"],"sSSL Cert Extensions":["None","None","None","None","None","None","None","[object Object],[object Object],[object Object],[object Object],[object Object],[object Object],[object Object],[object Object],[object Object]"],"SSL Cert Fingerprint in SHA1":["None","None","None","None","None","None","None","8d88a694b9d34163074487f4c22c0a52a0a515e6"],"SSL Cert Fingerprint in SHA256":["None","None","None","None","None","None","None","1fadec9eb995c8663153c6d113b79019571e618c2fe90c19a1c2a4883741e3e3"],"SSL Cert Issued On":["None","None","None","None","None","None","None","20200427000000Z"],"SSL Cert Issuer Country Name":["None","None","None","None","None","None","None","GB"],"SSL Cert Issuer Common Name":["None","None","None","None","None","None","None","Sectigo RSA Domain Validation Secure Server CA"],"SSL Cert Issuer Locality":["None","None","None","None","None","None","None","Salford"],"SSL Cert Issuer Organization":["None","None","None","None","None","None","None","Sectigo Limited"],"SSL Cert Issuer Organizational Unit":["None","None","None","None","None","None","None","None"],"SSL Cert Issuer State or Province Name":["None","None","None","None","None","None","None","Greater Manchester"],"SSL Cert Public Key Bits":["None","None","None","None","None","None","None","2048"],"SSL Cert Public Key Type":["None","None","None","None","None","None","None","rsa"],"SSL Cert Serial":["None","None","None","None","None","None","None","1.1757548943851957e+38"],
   "SSL Cert Signature Algorithm":["None","None","None","None","None","None","None","sha256WithRSAEncryption"],"SSL Cert Subject Common Name":["None","None","None","None","None","None","None","game-game.com.de"],"SSL Cert Subject Organizational Unit":["None","None","None","None","None","None","None","None"],"SSL Cert Version":["None","None","None","None","None","None","None","2"],"SSL Chain":["None","None","None","None","None","None","None",
@@ -437,7 +448,6 @@ async function shodanFunc(pendingToScan){
   for (i = 0; i < pendingToScan.length; i++){
     console.log("OutS13: Working on ip [" + i + "] IP: " + pendingToScan[i]);
     await shodanFunc2(pendingToScan[i], shodanData);
-    console.log(shodanData);
   }
   return shodanData;
 }
@@ -625,15 +635,18 @@ function shodanFunc4(host, shodanData_){
     try{ssl_tlsext = ssl_tlsext.toString();}
     catch(err){ssl_tlsext = 'None';}
 
-    ssl_all = ssl_acceptable_cas + "\t" + ssl_alpn + "\t" + sslcert_expired + "\t" + sslcert_expires + "\t" + 
-      sslcert_extensions + "\t" + sslcertfingerprint_sha1 + "\t" + sslcertfingerprint_sha256 + "\t" + 
-      sslcert_issued + "\t" + sslcertissuer_C + "\t" + sslcertissuer_CN + "\t" + 
-      sslcertissuer_L + "\t" + sslcertissuer_O + "\t" + sslcertissuer_OU + "\t" + sslcertissuer_ST + "\t" + 
-      sslcert_pubkeybits + "\t" + sslcert_pubkeytype + "\t" + sslcert_serial + "\t" + sslcert_sig_alg + "\t" + 
-      sslcertsubject_CN + "\t" + sslcertsubject_OU + "\t" + sslcert_version + "\t" + ssl_chain + "\t" + 
-      sslcipher_bits + "\t" + sslcipher_name + "\t" + sslcipher_version + "\t" + ssl_tlsext + "\t" + ssl_versions;
+    ssl_all = ssl_acceptable_cas + "A##*_*##A" + ssl_alpn + "A##*_*##A" + sslcert_expired + 
+      "A##*_*##A" + sslcert_expires + "A##*_*##A" + sslcert_extensions + "A##*_*##A" + 
+      sslcertfingerprint_sha1 + "A##*_*##A" + sslcertfingerprint_sha256 + "A##*_*##A" + 
+      sslcert_issued + "A##*_*##A" + sslcertissuer_C + "A##*_*##A" + sslcertissuer_CN + 
+      "A##*_*##A" + sslcertissuer_L + "A##*_*##A" + sslcertissuer_O + "A##*_*##A" + 
+      sslcertissuer_OU + "A##*_*##A" + sslcertissuer_ST + "A##*_*##A" + sslcert_pubkeybits + 
+      "A##*_*##A" + sslcert_pubkeytype + "A##*_*##A" + sslcert_serial + "A##*_*##A" + 
+      sslcert_sig_alg + "A##*_*##A" + sslcertsubject_CN + "A##*_*##A" + sslcertsubject_OU + 
+      "A##*_*##A" + sslcert_version + "A##*_*##A" + ssl_chain + "A##*_*##A" + 
+      sslcipher_bits + "A##*_*##A" + sslcipher_name + "A##*_*##A" + sslcipher_version + 
+      "A##*_*##A" + ssl_tlsext + "A##*_*##A" + ssl_versions;
     
-
     http_title = get(http, 'title','None');
     try{http_title = http_title.toString();}
     catch(err){ http_title = 'None';}
@@ -680,18 +693,24 @@ function shodanFunc4(host, shodanData_){
     try{corrkey = corrkey.toString();}
     catch(err){corrkey = 'None';}
 
-    str_all = ip_str + "\t" + curtime + "\t" + timestamp + "\t" + instance['port'].toString() + "\t" + 
-      instance['_shodan']['module'].toString() + "\t" + org + "\t" + shodanmodule_os + "\t" + 
-      product + "\t" + cpe + "\t" + http_title + "\t" + http_server + "\t" + http_redirects + 
-      "\t" + ssl_all + "\t" + portvulns_all + "\t" + nocve + "\t" + cvss + "\t" + corrkey;
+    var str_all = ip_str + "A##*_*##A" + curtime + "A##*_*##A" + timestamp + "A##*_*##A" + 
+      instance['port'].toString() + "A##*_*##A" + instance['_shodan']['module'].toString() + 
+      "A##*_*##A" + org + "A##*_*##A" + shodanmodule_os + "A##*_*##A" + 
+      product + "A##*_*##A" + cpe + "A##*_*##A" + http_title + "A##*_*##A" + http_server + 
+      "A##*_*##A" + http_redirects + "A##*_*##A" + ssl_all + "A##*_*##A" + portvulns_all + 
+      "A##*_*##A" + nocve + "A##*_*##A" + cvss + "A##*_*##A" + corrkey;
     str_all = str_all.replace('\r\n','');
     str_all = str_all.replace('\r','');
     str_all = str_all.replace('\n','');
+    str_all = str_all.replace('\t','');
 
     var shodanKeys = Object.keys(shodanData_);
-    row = str_all.split('\t');
-    console.log("OK");
-    console.log(row);
+    row = str_all.split("A##*_*##A");
+    for (j = 0; j < row.length; j++){
+      if (!row[j]){
+        row[j] = "None";
+      }
+    }
     for (j = 0; j < row.length; j++){
       shodanData_[shodanKeys[j]].push(row[j]);
     }
@@ -728,4 +747,184 @@ function getResultShodanData(shodanData){
     }
   }
   return resultShodanData;
+}
+/**Functions for outS14**/
+function shodanFilterForOutS14(shodanData){
+  protocolKeywordList = ['ssh', 'ftp', 'rdp'];
+  shodanOutS14 = {'Host':[], 'Retrieve Time':[], 'Timestamp':[], 'Port':[],
+    'Protocol':[],'Organization':[],'Operating System':[],'Service':[],
+    'Common Platform Enumeration ("CPE")':[],'Website Title':[],
+    'Service Version':[],'HTTP Redirect':[],
+    'SSL Acceptable Certification Authorities':[],
+    'SSL ALPN ("Application-Layer Protocol Negotiation")':[],'SSL Cert Expired':[],
+    'SSL Cert Expiration Date':[],'sSSL Cert Extensions':[],
+    'SSL Cert Fingerprint in SHA1':[], 'SSL Cert Fingerprint in SHA256':[],
+    'SSL Cert Issued On':[],'SSL Cert Issuer Country Name':[],
+    'SSL Cert Issuer Common Name':[],'SSL Cert Issuer Locality':[],
+    'SSL Cert Issuer Organization':[],'SSL Cert Issuer Organizational Unit':[],
+    'SSL Cert Issuer State or Province Name':[],'SSL Cert Public Key Bits':[],
+    'SSL Cert Public Key Type':[],'SSL Cert Serial':[],
+    'SSL Cert Signature Algorithm':[],'SSL Cert Subject Common Name':[],
+    'SSL Cert Subject Organizational Unit':[],'SSL Cert Version':[],
+    'SSL Chain':[],'SSL Cipher Bits':[],'SSL Cipher Name':[],'SSL Cipher Version':[],
+    'SSL TLS Extension':[],'SSL Versions':[],'Vulnerability Details':[],
+    'No. Cve':[],'Highest CVSS':[],'Corresponding CVE':[]
+  };
+  for (i = 0; i < shodanData['Host'].length; i++){
+    for (j = 0; j < protocolKeywordList.length; j++){
+      var containStr = false;
+      if (shodanData['Protocol'][i].includes(protocolKeywordList[j]) && shodanData['Retrieve Time'][i] != "Not found"){
+        containStr = true;
+        break;
+      }
+    } 
+    var shodanKeys = Object.keys(shodanData);
+    if (containStr){
+      for (k = 0; k < shodanKeys.length; k++){
+        shodanOutS14[shodanKeys[k]].push(shodanData[shodanKeys[k]][i]);
+      }
+    }
+  }
+  return shodanOutS14;
+}
+async function shodanGetHostNameForOutS14(shodanData){
+  shodanData['Host Name'] = [];
+  for (i = 0; i < shodanData['Host'].length; i ++){
+    console.log("OutS14: Extracting host name of ip [" + i + "]");
+    var rowHostName = await ipinfoShodanFunc(shodanData['Host'][i]);
+    shodanData['Host Name'].push(rowHostName);
+  }
+  return shodanData;
+}
+async function ipinfoShodanFunc(ip){
+  return new Promise((resolve, reject) => {
+    ipInfo(ip, 'b3f54ca780db8a', (err, cLoc) => {
+        if(err) reject(err);
+        var hostname;
+        if (cLoc.hostname == undefined){
+          var hostname = "Could Not Resolved";
+        }
+        else{
+          hostname = cLoc.hostname;
+        }
+        resolve(hostname);
+    });
+  });
+}
+function getShodanData2(shodanData){
+  shodanData2 = {'Host':[]};
+  shodanData2['Host'] = Array.from(shodanData['Host']);
+  shodanData2['Port'] = Array.from(shodanData['Port']);
+  shodanData2['Protocol'] = Array.from(shodanData['Protocol']);
+  shodanData2['Organization'] = Array.from(shodanData['Organization']);
+  shodanData2['Service'] = Array.from(shodanData['Service']);
+  shodanData2['Common Platform Enumeration ("CPE")'] = Array.from(shodanData['Common Platform Enumeration ("CPE")']);
+  shodanData2['Vulnerability Details'] = Array.from(shodanData['Vulnerability Details']);
+  shodanData2['No. Cve'] = Array.from(shodanData['No. Cve']);
+  shodanData2['Highest CVSS'] = Array.from(shodanData['Highest CVSS']);
+  shodanData2['Corresponding CVE'] = Array.from(shodanData['Corresponding CVE']);
+  shodanData2['Host Name'] = Array.from(shodanData['Host Name']);
+  return shodanData2;
+}
+/**Functions for outS15**/
+function getTempOutS15Data(){
+  return {"Domain":["strategyand.pwc.com","ukmediacentre.pwc.com","taxsummaries.pwc.com",
+  "usblogs.pwc.com","habitbank.pwc.com","download.pwc.com","talentexchange.pwc.com",
+  "heforshe.pwc.com","careeradvisor.pwc.com","read.ca.pwc.com"],"IP":["45.60.49.112",
+  "198.55.195.39","45.60.49.73","65.183.25.42","184.84.116.132","184.84.116.132","45.60.106.112",
+  "184.84.116.132","155.201.8.41","52.60.165.183"],"ISP":["AS19551 Incapsula Inc,US",
+  "AS14495 Nasdaq, Inc.,US","AS19551 Incapsula Inc,US","AS19623 PriceWaterhouseCoopers, LLP,US",
+  "AS20940 Akamai International B.V.,HK","AS20940 Akamai International B.V.,HK","AS19551 Incapsula Inc,US",
+  "AS20940 Akamai International B.V.,HK","AS20426 PriceWaterhouseCoopers, LLP,US",
+  "AS16509 Amazon.com, Inc.,CA"],"RecordType":["host","host","host","host","host","host","host","host",
+  "host","host"],"hostname":["No Info","No Info","No Info","No Info",
+  "a184-84-116-132.deploy.static.akamaitechnologies.com",
+  "a184-84-116-132.deploy.static.akamaitechnologies.com","No Info",
+  "a184-84-116-132.deploy.static.akamaitechnologies.com","No Info",
+  "ec2-52-60-165-183.ca-central-1.compute.amazonaws.com"],"Login Portal":["(1) Detected",
+  "(0) Not Detected/Time Out","(0) Not Detected/Time Out","(1) Detected","(1) Detected",
+  "(0) Not Detected/Time Out","(0) Not Detected/Time Out","(1) Detected","(1) Detected",
+  "(0) Not Detected/Time Out"],"ScreenShot":["0.png","Failed to extract portal screenshot",
+  "Failed to extract portal screenshot","3.png","4.png","Failed to extract portal screenshot",
+  "Failed to extract portal screenshot","7.png","8.png","Failed to extract portal screenshot"]}
+}
+async function updateResultForOutS15(result){
+  result['Login Portal'] = [];
+  result['ScreenShot'] = [];
+
+  for (i = 0; i < 10; i++){//result['Domain'].length
+    console.log("OutS15: working on exposed login portals [" + i + "]");
+    var planedDomain = "http://" + result['Domain'][i];
+    try{
+      console.log("OutS15: getting html text");
+      var htmlContent = await getHTMLText(planedDomain);
+    }
+    catch(err){
+      htmlContent = "None";
+    }
+    const keyWordList = ['login', 'password', 'credentials', 'username', 'pwd', '密碼', 'pass'];
+    containKeyword = checkContainKeyword(keyWordList, htmlContent);
+    if (containKeyword){
+      result['Login Portal'][i] = "(1) Detected";
+      try{
+        console.log("OutS15: getting html screenshot");
+        await getScreenshot(planedDomain, i);
+        result['ScreenShot'][i] = i + ".png";
+      }
+      catch (err){
+        console.log("OutS15: fail to extract screenshoot");
+        result['ScreenShot'][i] = "Failed to extract portal screenshot";
+      }
+    }
+    else{
+      result['Login Portal'][i] = "(0) Not Detected/Time Out";
+      result['ScreenShot'][i] = "Failed to extract portal screenshot";
+    }
+  }
+  return result;
+}
+async function getHTMLText(planedDomain){
+  var htmlText = "";
+  try{
+    await fetch(planedDomain)
+    .then(res => res.text())
+    .then(res => htmlText = res);
+
+    return htmlText;
+  }
+  catch(err){
+    return "Failed to Connect";
+  }
+}
+function checkContainKeyword(list, str){
+  for (j = 0; j < list.length; j++){
+    if(str.includes(list[j])){
+      return true;
+    }
+  }
+  return false;
+}
+async function getScreenshot(searchDomain, i){
+    try{
+      await captureWebsite.file(searchDomain, i + '.png');
+    }
+    catch(err){
+      console.log("OutS15: Failed to extract screenshot");
+    }
+}
+function getDetectedData(result){
+  var detectedData = {'Domain':[], 'hostname':[], 'IP':[], 'ISP':[], 
+    'RecordType': [], 'Login Portal':[], 'ScreenShot':[]};
+  for (i = 0; i < result['Login Portal'].length; i++){
+    if (result['Login Portal'][i] == '(1) Detected'){
+      detectedData['Domain'].push(result['Domain'][i]);
+      detectedData['hostname'].push(result['hostname'][i]);
+      detectedData['IP'].push(result['IP'][i]);
+      detectedData['ISP'].push(result['ISP'][i]);
+      detectedData['RecordType'].push(result['RecordType'][i]);
+      detectedData['Login Portal'].push(result['Login Portal'][i]);
+      detectedData['ScreenShot'].push(result['ScreenShot'][i]);
+    }
+  }
+  return detectedData;
 }
