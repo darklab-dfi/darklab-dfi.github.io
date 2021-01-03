@@ -7,8 +7,9 @@
         <sidebar-link to="/table-list" name="Table List" icon="ti-view-list-alt"/>
         <sidebar-link to="/typography" name="Typography" icon="ti-text"/>
         <sidebar-link to="/icons" name="Icons" icon="ti-pencil-alt2"/>
-        <sidebar-link to="/maps" name="Map" icon="ti-map"/>
+        <sidebar-link to="/dbv1" name="dbv1" icon="ti-wand"/>
         <sidebar-link to="/notifications" name="Notifications" icon="ti-bell"/>
+        <sidebar-link to="/callapi" name="callapi" icon="ti-music-alt"/><!--Jonathan: Add this-->
       </template>
       <mobile-menu>
         <li class="nav-item">

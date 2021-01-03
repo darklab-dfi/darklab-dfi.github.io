@@ -1,3 +1,20 @@
+<!--Jonathan added:Start-->
+<!--cd Desktop/ISOM4400/pwc-fyp/vue-paper-dashboard-master-->
+<!--add extension in chrome Moesif Origin & CORS Changer-->
+<script>
+const { request } = require('express');
+var express = require('express');
+var router = express.Router();
+const fetch = require('node-fetch');
+const Papa = require('papaparse');
+const shodanClient = require('shodan-client');
+const urlscan = require('urlscan-api');
+const zoomRequest = require('request-promise-native');
+const e = require('express');
+global.XMLHttpRequest = require("xhr2");
+</script>
+<!--Jonathan added:End-->
+
 <template>
   <card class="card" title="Edit Profile">
     <div>
