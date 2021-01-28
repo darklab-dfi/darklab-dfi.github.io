@@ -20,8 +20,10 @@ import router from "./router/index";
 import PaperDashboard from "./plugins/paperDashboard";
 import "vue-notifyjs/themes/default.css";
 import vuetify from './plugins/vuetify';
+import VueGoogleCharts from 'vue-google-charts';
 
 Vue.use(PaperDashboard);
+Vue.use(VueGoogleCharts);
 
 /* eslint-disable no-new */
 new Vue({
