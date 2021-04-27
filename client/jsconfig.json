@@ -1,5 +1,4 @@
 {
     "include": [
-        "./src/**/*"
-, "vue.config.js", "scripts"]
+        "./src/**/*"]
 }
