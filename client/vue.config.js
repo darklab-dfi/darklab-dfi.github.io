@@ -4,6 +4,6 @@ module.exports = {
     "vuetify"
   ],
   publicPath: process.env.NODE_ENV === 'production'
-    ? '/darklab-dfi/'
+    ? '/darklab-dfi.github.io/'
     : '/'
 }
